@@ -10,6 +10,8 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
+await mkdir("data", { recursive: true });
+
 const SOURCES = [
   {
     name: "oni",
