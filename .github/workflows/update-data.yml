@@ -1,0 +1,40 @@
+# .github/workflows/update-data.yml
+name: Update data
+
+on:
+  schedule:
+    - cron: "0 9 * * *"   # 09:00 UTC daily
+  workflow_dispatch:      # lets you run it by hand from the Actions tab
+
+permissions:
+  contents: write         # required for the bot to push
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fetch and validate sources
+        run: node scripts/fetch-data.mjs
+
+      # Runs even if a source failed, so the manifest records the failure.
+      - name: Commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --staged --quiet || git commit -m "data: $(date -u +%Y-%m-%d)"
+          git push
+
+      # Turn the run red so you get GitHub's failure email.
+      - name: Report failures
+        run: |
+          if grep -q '"status": "failed"' data/manifest.json; then
+            echo "::error::One or more sources failed — see data/manifest.json"
+            exit 1
+          fi
