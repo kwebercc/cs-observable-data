@@ -1,0 +1,16 @@
+{
+  "oni": {
+    "url": "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt",
+    "last_checked": "2026-08-02T22:41:25.708Z",
+    "status": "ok",
+    "last_changed": "2026-08-02T22:41:25.708Z",
+    "bytes": 22950
+  },
+  "roni": {
+    "url": "https://www.cpc.ncep.noaa.gov/data/indices/RONI.ascii.txt",
+    "last_checked": "2026-08-02T22:41:25.708Z",
+    "status": "ok",
+    "last_changed": "2026-08-02T22:41:25.708Z",
+    "bytes": 14688
+  }
+}
