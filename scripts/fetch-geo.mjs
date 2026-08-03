@@ -13,7 +13,7 @@
  *
  * Requires: gdal-bin (ogr2ogr), and geo2topo / toposimplify / topoquantize.
  */
-import { readFile, writeFile, mkdir, rm, readdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, rm, readdir, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { execFileSync, execSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -35,6 +35,7 @@ const SOURCES = [
   {
     name: "mdo",
     url: "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/mdo_polygons_latest.zip",
+    shp: "DO_Merge_Clip.shp",          // archive also holds territory layers
     object: "mdo",
     out: "data/geo/mdo.topojson",
     simplify: 0.12,
@@ -44,6 +45,7 @@ const SOURCES = [
   {
     name: "sdo",
     url: "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/sdo_polygons_latest.zip",
+    shp: "DO_Merge_Clip.shp",
     object: "sdo",
     out: "data/geo/sdo.topojson",
     simplify: 0.12,
@@ -55,18 +57,51 @@ const SOURCES = [
 const MANIFEST = "data/geo-manifest.json";
 const FAIL_AFTER_DAYS = 3;
 
-/** Recursively finds the first .shp in a directory tree. */
-async function findShapefile(dir) {
+/** Recursively collects every .shp in a directory tree, with its size. */
+async function findShapefiles(dir) {
+  const found = [];
   for (const item of await readdir(dir, { withFileTypes: true })) {
     const full = path.join(dir, item.name);
     if (item.isDirectory()) {
-      const nested = await findShapefile(full);
-      if (nested) return nested;
+      found.push(...await findShapefiles(full));
     } else if (item.name.toLowerCase().endsWith(".shp")) {
-      return full;
+      found.push({ file: full, size: (await stat(full)).size });
     }
   }
-  return null;
+  return found;
+}
+
+/**
+ * Picks which shapefile to convert. These archives can hold several layers
+ * (CONUS plus island territories), so taking whichever turned up first is how
+ * you end up mapping the Virgin Islands. Prefer an explicitly configured name;
+ * otherwise fall back to the largest, which is a decent proxy for CONUS.
+ */
+function pickShapefile(candidates, want, sourceName) {
+  if (candidates.length === 0) return null;
+
+  if (want) {
+    const match = candidates.find(
+      c => path.basename(c.file).toLowerCase() === want.toLowerCase()
+    );
+    if (!match) {
+      throw new Error(
+        `expected "${want}" but archive holds: ` +
+        candidates.map(c => path.basename(c.file)).join(", ")
+      );
+    }
+    return match;
+  }
+
+  const largest = [...candidates].sort((a, b) => b.size - a.size)[0];
+  if (candidates.length > 1) {
+    console.warn(
+      `${sourceName}: ${candidates.length} shapefiles present, no "shp" ` +
+      `configured — defaulting to the largest (${path.basename(largest.file)}). ` +
+      `Set "shp" explicitly if that's wrong.`
+    );
+  }
+  return largest;
 }
 
 await mkdir("data/geo", { recursive: true });
@@ -116,8 +151,22 @@ for (const src of SOURCES) {
     await writeFile(zipPath, buf);
     execFileSync("unzip", ["-o", "-q", zipPath, "-d", work]);
 
-    const shp = await findShapefile(work);
-    if (!shp) throw new Error("no .shp found inside the archive");
+    const candidates = await findShapefiles(work);
+    if (candidates.length === 0) throw new Error("no .shp found inside the archive");
+
+    // Always log what was in the archive — this is how you notice upstream
+    // adding or renaming a layer before it silently changes your map.
+    console.log(
+      `${src.name}: archive contains ` +
+      candidates
+        .map(c => `${path.basename(c.file)} (${(c.size / 1024).toFixed(0)} KB)`)
+        .join(", ")
+    );
+
+    const picked = pickShapefile(candidates, src.shp, src.name);
+    const shp = picked.file;
+    entry.layer = path.basename(shp);
+    console.log(`${src.name}: converting ${entry.layer}`);
 
     if (src.dateFrom) {
       const m = path.basename(shp).match(src.dateFrom);
@@ -149,6 +198,12 @@ for (const src of SOURCES) {
     const geometries = topo.objects?.[src.object]?.geometries;
     if (!Array.isArray(geometries) || geometries.length === 0) {
       throw new Error("conversion produced no geometries");
+    }
+
+    // topojson carries a bbox; recording it makes a wrong-layer pick obvious
+    // at a glance — CONUS should span roughly -125..-66 lon, 24..50 lat.
+    if (Array.isArray(topo.bbox)) {
+      entry.bbox = topo.bbox.map(n => Math.round(n * 100) / 100);
     }
 
     const bytes = (await readFile(src.out)).length;
