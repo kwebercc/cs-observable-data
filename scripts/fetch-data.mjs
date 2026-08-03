@@ -147,6 +147,36 @@ const transformCag = buf =>
   toCsv(parseCag(buf.toString("utf8")), ["period", "year", "value", "anomaly"]);
 
 // ---------------------------------------------------------------------------
+// Climate Reanalyzer daily SST
+// ---------------------------------------------------------------------------
+
+// Payload is an array of series: [{ name: "2026", data: [366 daily values] }, ...]
+// with extra entries for the climatological mean and sigma bands.
+const sniffSst = buf => {
+  try {
+    const json = JSON.parse(buf.toString("utf8"));
+    return Array.isArray(json) &&
+      json.length >= 20 &&
+      json.some(s => Array.isArray(s?.data) && s.data.length >= 365);
+  } catch {
+    return false;   // not JSON at all, or wrong shape
+  }
+};
+
+const SST_BASE = "https://climatereanalyzer.org/clim/sst_daily/json_2clim";
+
+// Basin codes as they appear in the filenames, paired with a short id.
+const SST_BASINS = [
+  { id: "world",   code: "world2"  },   // World (60S-60N)
+  { id: "natlan",  code: "natlan"  },   // North Atlantic
+  { id: "natlsp",  code: "natlsp"  },   // Subpolar North Atlantic
+  { id: "atlhmdr", code: "atlhmdr" },   // Atlantic Hurricane MDR
+  { id: "gom",     code: "gom"     },   // Gulf of Maine
+  { id: "gomex",   code: "gomex"   },   // Gulf of Mexico
+  { id: "nino34",  code: "nino3.4" }    // Nino 3.4
+];
+
+// ---------------------------------------------------------------------------
 // Validation by parsing: if we can't pull at least `min` clean rows out of the
 // payload, it isn't the file we wanted. An HTML error page, a truncated
 // response, and a swapped URL all fail this.
@@ -258,6 +288,20 @@ const SOURCES = [
     transform: transformCag
   }
 
+  ,
+  // --- Climate Reanalyzer daily SST ---------------------------------------
+  // Filenames match the source exactly, so switching a notebook over is just
+  // a change of base URL. Updates daily, so no minAgeHours throttle.
+  {
+    name: "sst",
+    variants: SST_BASINS,
+    url: v => `${SST_BASE}/oisst2.1_${v.code}_sst_day.json`,
+    file: v => `data/sst/oisst2.1_${v.code}_sst_day.json`,
+    minBytes: 20000,
+    throttleMs: 500,
+    sniff: sniffSst
+  }
+
   // --- Example of the variants pattern, for dynamic CAG selections ---------
   // Uncomment and fill in the codes you actually need. Each variant becomes
   // its own mirrored file, named "<source>_<id>".
@@ -299,6 +343,7 @@ function expandSources(sources) {
 
 const MANIFEST = "data/manifest.json";
 const MAX_SHRINK = 0.5;   // reject a file that's less than half its old size
+const FAIL_AFTER_DAYS = 3; // days a source must be failing before the run goes red
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -363,6 +408,7 @@ for (const src of expandSources(SOURCES)) {
 
     entry.status = "ok";
     delete entry.error;
+    delete entry.failing_since;
 
     // Derived output gets its own error boundary: a bad transform shouldn't
     // invalidate a mirror that fetched and validated fine.
@@ -384,8 +430,41 @@ for (const src of expandSources(SOURCES)) {
     // Note what failed, but leave the existing good file untouched.
     entry.status = "failed";
     entry.error = String(err.message);
-    console.error(`${src.name}: FAILED — ${err.message}`);
+    entry.failing_since ??= now;   // first failure of this streak
+
+    const days = (Date.now() - new Date(entry.failing_since)) / 864e5;
+    console.error(`${src.name}: FAILED — ${err.message} (failing ${days.toFixed(1)}d)`);
   }
+}
+
+// Only escalate to a red run once a source has been failing for a while.
+// A one-day upstream outage is normal; a three-day one probably needs a look.
+const alerting = Object.entries(manifest)
+  .filter(([name, e]) =>
+    !name.startsWith("_") &&
+    e.status === "failed" &&
+    e.failing_since &&
+    (Date.now() - new Date(e.failing_since)) / 864e5 >= FAIL_AFTER_DAYS
+  )
+  .map(([name]) => name);
+
+const failingNow = Object.entries(manifest)
+  .filter(([name, e]) => !name.startsWith("_") && e.status === "failed")
+  .map(([name]) => name);
+
+manifest._meta = {
+  generated: now,
+  fail_after_days: FAIL_AFTER_DAYS,
+  failing: failingNow,
+  alerting,
+  alert: alerting.length > 0
+};
+
+if (failingNow.length) {
+  console.log(`Currently failing: ${failingNow.join(", ")}`);
+}
+if (alerting.length) {
+  console.log(`Past the ${FAIL_AFTER_DAYS}-day grace period: ${alerting.join(", ")}`);
 }
 
 await writeFile(MANIFEST, JSON.stringify(manifest, null, 2) + "\n");
