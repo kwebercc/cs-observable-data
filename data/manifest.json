@@ -1,21 +1,21 @@
 {
   "oni": {
     "url": "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt",
-    "last_checked": "2026-08-03T01:02:27.626Z",
+    "last_checked": "2026-08-03T04:21:26.364Z",
     "status": "ok",
     "last_changed": "2026-08-02T22:41:25.708Z",
     "bytes": 22950
   },
   "roni": {
     "url": "https://www.cpc.ncep.noaa.gov/data/indices/RONI.ascii.txt",
-    "last_checked": "2026-08-03T01:02:27.626Z",
+    "last_checked": "2026-08-03T04:21:26.364Z",
     "status": "ok",
     "last_changed": "2026-08-02T22:41:25.708Z",
     "bytes": 14688
   },
   "co2": {
     "url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.txt",
-    "last_checked": "2026-08-03T01:02:27.626Z",
+    "last_checked": "2026-08-03T04:21:26.364Z",
     "last_changed": "2026-08-02T23:35:24.006Z",
     "bytes": 59468,
     "rows": 820,
@@ -23,7 +23,7 @@
   },
   "ch4": {
     "url": "https://gml.noaa.gov/webdata/ccgg/trends/ch4/ch4_mm_gl.txt",
-    "last_checked": "2026-08-03T01:02:27.626Z",
+    "last_checked": "2026-08-03T04:21:26.364Z",
     "last_changed": "2026-08-02T23:35:24.006Z",
     "bytes": 45819,
     "rows": 513,
@@ -31,7 +31,7 @@
   },
   "n2o": {
     "url": "https://gml.noaa.gov/webdata/ccgg/trends/n2o/n2o_mm_gl.txt",
-    "last_checked": "2026-08-03T01:02:27.626Z",
+    "last_checked": "2026-08-03T04:21:26.364Z",
     "last_changed": "2026-08-02T23:35:24.006Z",
     "bytes": 27969,
     "rows": 303,
@@ -39,10 +39,22 @@
   },
   "co2_weekly": {
     "url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_weekly_mlo.txt",
-    "last_checked": "2026-08-03T01:02:27.626Z",
+    "last_checked": "2026-08-03T04:21:26.364Z",
     "last_changed": "2026-08-03T01:02:27.626Z",
     "bytes": 208740,
     "rows": 2724,
     "status": "ok"
+  },
+  "global_hottest_years": {
+    "url": "https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance/global/haywood/globe/tavg/land_ocean/12/data.json",
+    "last_checked": "2026-08-03T04:21:26.364Z",
+    "status": "failed",
+    "error": "HTTP 503"
+  },
+  "us_hottest_years": {
+    "url": "https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance/national/haywood/110/tavg/12/data.json",
+    "last_checked": "2026-08-03T04:21:26.364Z",
+    "status": "failed",
+    "error": "HTTP 503"
   }
 }
