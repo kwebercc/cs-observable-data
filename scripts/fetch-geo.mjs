@@ -117,31 +117,85 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December"
 ];
 
-/** "10/31/2026" -> { month: 10, day: 31, year: 2026 } */
-function parseUsDate(text) {
-  const m = String(text).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  return m ? { month: +m[1], day: +m[2], year: +m[3] } : null;
+const MONTH_RE = /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/;
+
+function monthIndexFromName(name) {
+  const stem = String(name).toLowerCase().slice(0, 3);
+  if (!MONTH_RE.test(stem)) return -1;
+  return MONTHS.findIndex(m => m.toLowerCase().startsWith(stem));
+}
+
+/**
+ * These DBF fields are inconsistent across CPC products — "Aug 2026",
+ * "October 31", "10/31/2026" and ISO dates all turn up. Parse them all, and
+ * flag whether a year was actually present.
+ * Returns { year, month, day, hadYear } or null.
+ */
+function parseFlexibleDate(text) {
+  const t = String(text).trim().replace(/,/g, " ").replace(/\s+/g, " ");
+  let m;
+
+  // 10/31/2026
+  if ((m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) {
+    return { year: +m[3], month: +m[1], day: +m[2], hadYear: true };
+  }
+  // 2026-10-31
+  if ((m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))) {
+    return { year: +m[1], month: +m[2], day: +m[3], hadYear: true };
+  }
+  // "October 31 2026" / "Oct 31" / "October 31"
+  if ((m = t.match(/^([A-Za-z]+)\.? (\d{1,2})(?: (\d{4}))?$/))) {
+    const idx = monthIndexFromName(m[1]);
+    if (idx >= 0) {
+      return { year: m[3] ? +m[3] : null, month: idx + 1, day: +m[2], hadYear: Boolean(m[3]) };
+    }
+  }
+  // "Aug 2026" — month and year, no day
+  if ((m = t.match(/^([A-Za-z]+)\.? (\d{4})$/))) {
+    const idx = monthIndexFromName(m[1]);
+    if (idx >= 0) return { year: +m[2], month: idx + 1, day: null, hadYear: true };
+  }
+  // "31 October 2026"
+  if ((m = t.match(/^(\d{1,2}) ([A-Za-z]+)\.?(?: (\d{4}))?$/))) {
+    const idx = monthIndexFromName(m[2]);
+    if (idx >= 0) {
+      return { year: m[3] ? +m[3] : null, month: idx + 1, day: +m[1], hadYear: Boolean(m[3]) };
+    }
+  }
+  return null;
+}
+
+/**
+ * Outlook targets are always near the issue date, so when the year is missing
+ * we take whichever candidate year lands closest to now. That resolves a
+ * December/January target correctly instead of assuming the current year.
+ */
+function inferYear(month, day, reference = new Date()) {
+  const base = reference.getUTCFullYear();
+  return [base - 1, base, base + 1]
+    .map(y => ({ y, gap: Math.abs(Date.UTC(y, month - 1, day || 1) - reference.getTime()) }))
+    .sort((a, b) => a.gap - b.gap)[0].y;
+}
+
+function resolved(text) {
+  const d = parseFlexibleDate(text);
+  if (!d) return null;
+  return d.hadYear ? d : { ...d, year: inferYear(d.month, d.day) };
 }
 
 /** "Aug 2026" or "10/31/2026" -> "August 2026" */
 function monthLabel(text) {
-  const named = String(text).trim().match(/^([A-Za-z]+)\.?\s+(\d{4})$/);
-  if (named) {
-    const stem = named[1].toLowerCase().slice(0, 3);
-    const idx = MONTHS.findIndex(name => name.toLowerCase().startsWith(stem));
-    if (idx >= 0) return `${MONTHS[idx]} ${named[2]}`;
-  }
-  const d = parseUsDate(text);
+  const d = resolved(text);
   return d ? `${MONTHS[d.month - 1]} ${d.year}` : null;
 }
 
 /**
- * Turns the closing date of an n-month outlook into a span label.
+ * Turns the closing month of an n-month outlook into a span label.
  * "10/31/2026" with months=3 -> "August-October 2026"
  * Handles the year boundary: "1/31/2027" -> "November 2026-January 2027"
  */
 function seasonLabel(text, months = 3) {
-  const d = parseUsDate(text);
+  const d = resolved(text);
   if (!d) return null;
 
   const endIdx = d.month - 1;
@@ -171,7 +225,7 @@ async function applyLabel(entry, src) {
       return;
     }
 
-    entry.properties = Object.keys(props);   // so you can see what's available
+    entry.properties = props;   // full first-feature properties, for debugging
 
     // Match the configured field case-insensitively; shapefile DBF column
     // names get mangled by different toolchains.
@@ -185,13 +239,22 @@ async function applyLabel(entry, src) {
       return;
     }
 
+    delete entry.valid_label;   // clear any stale value before recomputing
+
     const raw = props[key];
     entry.valid_raw = raw;
     entry.valid_label = src.label.mode === "season"
       ? seasonLabel(raw, src.label.months ?? 3)
       : monthLabel(raw);
 
-    console.log(`${src.name}: ${key}="${raw}" -> "${entry.valid_label}"`);
+    if (!entry.valid_label) {
+      console.warn(
+        `${src.name}: could not parse ${key}="${raw}". ` +
+        `Properties: ${JSON.stringify(props)}`
+      );
+    } else {
+      console.log(`${src.name}: ${key}="${raw}" -> "${entry.valid_label}"`);
+    }
   } catch (err) {
     console.warn(`${src.name}: could not derive label — ${err.message}`);
   }
