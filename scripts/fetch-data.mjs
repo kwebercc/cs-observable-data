@@ -343,7 +343,7 @@ function expandSources(sources) {
 
 const MANIFEST = "data/manifest.json";
 const MAX_SHRINK = 0.5;   // reject a file that's less than half its old size
-const FAIL_AFTER_DAYS = 3; // days a source must be failing before the run goes red
+const FAIL_AFTER_DAYS = 1; // days a source must be failing before the run goes red
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
