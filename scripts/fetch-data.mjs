@@ -111,6 +111,42 @@ function parseCo2Weekly(text) {
 }
 
 // ---------------------------------------------------------------------------
+// NCEI Climate at a Glance JSON
+// ---------------------------------------------------------------------------
+
+/**
+ * CAG payloads are { description: {...}, data: { "<period>": {value, anomaly} } }.
+ * Period keys are a 4-digit year, sometimes with a 2-digit month suffix, so we
+ * take the year off the front and keep the raw key too.
+ */
+function parseCag(text) {
+  const json = JSON.parse(text);
+  if (!json.data || typeof json.data !== "object") {
+    throw new Error("payload has no data object");
+  }
+  return Object.entries(json.data)
+    .map(([period, v]) => ({
+      period,
+      year: Number(String(period).slice(0, 4)),
+      value: v?.value === undefined ? null : Number(v.value),
+      anomaly: v?.anomaly === undefined ? null : Number(v.anomaly)
+    }))
+    .filter(r => Number.isFinite(r.year))
+    .sort((a, b) => a.year - b.year);
+}
+
+const sniffCag = min => buf => {
+  try {
+    return parseCag(buf.toString("utf8")).length >= min;
+  } catch {
+    return false;   // not JSON at all, or wrong shape
+  }
+};
+
+const transformCag = buf =>
+  toCsv(parseCag(buf.toString("utf8")), ["period", "year", "value", "anomaly"]);
+
+// ---------------------------------------------------------------------------
 // Validation by parsing: if we can't pull at least `min` clean rows out of the
 // payload, it isn't the file we wanted. An HTML error page, a truncated
 // response, and a swapped URL all fail this.
@@ -124,7 +160,15 @@ const sniffWeekly = min =>
 
 // ---------------------------------------------------------------------------
 // Sources
+//
+// Optional fields:
+//   derived      — path for a parsed CSV written alongside the raw mirror
+//   transform    — buf => string, produces that CSV
+//   minAgeHours  — skip the fetch if we checked more recently than this
+//   variants     — expand one entry into many (see expandSources below)
 // ---------------------------------------------------------------------------
+
+const CAG_BASE = "https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance";
 
 const SOURCES = [
   {
@@ -189,13 +233,74 @@ const SOURCES = [
       parseCo2Weekly(buf.toString("utf8")),
       [...GML_CO2_WEEKLY, "date", "imputed"]
     )
+  },
+
+  // --- NCEI Climate at a Glance -------------------------------------------
+  // CAG updates monthly, so there's no reason to poll it every day.
+  {
+    name: "global_hottest_years",
+    url: `${CAG_BASE}/global/haywood/globe/tavg/land_ocean/12/data.json`,
+    file: "data/global_hottest_years.json",
+    derived: "data/global_hottest_years.csv",
+    minBytes: 1000,
+    minAgeHours: 20,
+    sniff: sniffCag(100),                         // record starts 1850
+    transform: transformCag
+  },
+  {
+    name: "us_hottest_years",
+    url: `${CAG_BASE}/national/haywood/110/tavg/12/data.json`,
+    file: "data/us_hottest_years.json",
+    derived: "data/us_hottest_years.csv",
+    minBytes: 1000,
+    minAgeHours: 20,
+    sniff: sniffCag(100),                         // record starts 1895
+    transform: transformCag
   }
+
+  // --- Example of the variants pattern, for dynamic CAG selections ---------
+  // Uncomment and fill in the codes you actually need. Each variant becomes
+  // its own mirrored file, named "<source>_<id>".
+  //
+  // {
+  //   name: "cag_state_tavg",
+  //   variants: [
+  //     { id: "ct", code: "6" },
+  //     { id: "ny", code: "30" },
+  //     { id: "ca", code: "4" }
+  //   ],
+  //   url: v => `${CAG_BASE}/statewide/haywood/${v.code}/tavg/12/data.json`,
+  //   file: v => `data/cag/state-${v.id}-tavg.json`,
+  //   derived: v => `data/cag/state-${v.id}-tavg.csv`,
+  //   minBytes: 1000,
+  //   minAgeHours: 20,
+  //   throttleMs: 500,
+  //   sniff: sniffCag(100),
+  //   transform: transformCag
+  // }
 ];
+
+/** Turns any entry carrying `variants` into one concrete source per variant. */
+function expandSources(sources) {
+  return sources.flatMap(src => {
+    if (!src.variants) return [src];
+    return src.variants.map(v => ({
+      ...src,
+      variants: undefined,
+      name: `${src.name}_${v.id}`,
+      url: src.url(v),
+      file: src.file(v),
+      derived: src.derived ? src.derived(v) : undefined
+    }));
+  });
+}
 
 // ---------------------------------------------------------------------------
 
 const MANIFEST = "data/manifest.json";
 const MAX_SHRINK = 0.5;   // reject a file that's less than half its old size
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // Ensure data/ exists even if every source fails, so the manifest write below
 // can't die with ENOENT. No-op once the folder is there.
@@ -207,12 +312,24 @@ const manifest = existsSync(MANIFEST)
 
 const now = new Date().toISOString();
 
-for (const src of SOURCES) {
+for (const src of expandSources(SOURCES)) {
   const entry = (manifest[src.name] ??= {});
+
+  // Throttle sources that update slower than we run.
+  if (src.minAgeHours && entry.last_checked && entry.status === "ok") {
+    const ageHours = (Date.now() - new Date(entry.last_checked)) / 3.6e6;
+    if (ageHours < src.minAgeHours) {
+      console.log(`${src.name}: skipped (checked ${ageHours.toFixed(1)}h ago)`);
+      continue;
+    }
+  }
+
   entry.url = src.url;
   entry.last_checked = now;
 
   try {
+    if (src.throttleMs) await sleep(src.throttleMs);
+
     const res = await fetch(src.url, { signal: AbortSignal.timeout(60_000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -244,16 +361,23 @@ for (const src of SOURCES) {
       entry.bytes = buf.length;
     }
 
-    // Regenerate derived output when the raw changed, or if it's missing
-    // (first run after adding a transform to an already-mirrored source).
-    if (src.transform && (changed || !existsSync(src.derived))) {
-      const csv = src.transform(buf);
-      await writeFile(src.derived, csv);
-      entry.rows = csv.trimEnd().split("\n").length - 1;
-    }
-
     entry.status = "ok";
     delete entry.error;
+
+    // Derived output gets its own error boundary: a bad transform shouldn't
+    // invalidate a mirror that fetched and validated fine.
+    if (src.transform && (changed || !existsSync(src.derived))) {
+      try {
+        const csv = src.transform(buf);
+        await writeFile(src.derived, csv);
+        entry.rows = csv.trimEnd().split("\n").length - 1;
+        delete entry.derived_error;
+      } catch (err) {
+        entry.derived_error = String(err.message);
+        console.error(`${src.name}: transform failed — ${err.message}`);
+      }
+    }
+
     console.log(`${src.name}: ${changed ? "updated" : "unchanged"} (${buf.length} bytes)`);
 
   } catch (err) {
