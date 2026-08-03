@@ -1,7 +1,7 @@
 {
   "usdm": {
     "url": "https://droughtmonitor.unl.edu/data/shapefiles_m/USDM_current_M.zip",
-    "last_checked": "2026-08-03T05:25:55.982Z",
+    "last_checked": "2026-08-03T05:43:01.633Z",
     "layer": "USDM_20260728.shp",
     "valid_date": "2026-07-28",
     "bbox": [
@@ -10,15 +10,17 @@
       -65.22,
       67.56
     ],
-    "sha256": "97ca9017bfdfa956fc1b8f7114f8e7e68a7eb0069be478eff8ec5c17fcdc57e2",
     "status": "ok",
-    "last_changed": "2026-08-03T05:25:55.982Z",
+    "last_changed": "2026-08-03T05:43:01.633Z",
     "features": 5,
-    "output_bytes": 245486
+    "output_bytes": 245486,
+    "valid_label": "July 28, 2026",
+    "source_sha256": "97ca9017bfdfa956fc1b8f7114f8e7e68a7eb0069be478eff8ec5c17fcdc57e2",
+    "cache_key": "cd5e1c74c03f43f6663f5df20a44d3073b0d9878e4b9eabdac5255806f377177"
   },
   "mdo": {
     "url": "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/mdo_polygons_latest.zip",
-    "last_checked": "2026-08-03T05:25:55.982Z",
+    "last_checked": "2026-08-03T05:43:01.633Z",
     "layer": "DO_Merge_Clip.shp",
     "bbox": [
       -179.15,
@@ -26,15 +28,27 @@
       179.77,
       71.39
     ],
-    "sha256": "612376296bc86d48df592479ff27f2f45154de04b4ed30e4b34c9a8f41a25432",
     "status": "ok",
-    "last_changed": "2026-08-03T05:25:55.982Z",
+    "last_changed": "2026-08-03T05:43:01.633Z",
     "features": 5,
-    "output_bytes": 889536
+    "output_bytes": 889536,
+    "source_sha256": "612376296bc86d48df592479ff27f2f45154de04b4ed30e4b34c9a8f41a25432",
+    "cache_key": "618791df17f25033452a362934f3d201145c2deb80a667440737fe12575b9edf",
+    "properties": [
+      "Outlook",
+      "FID_persis",
+      "FID_improv",
+      "FID_Remove",
+      "FID_dev",
+      "Fcst_Date",
+      "Target"
+    ],
+    "valid_raw": "Aug 2026",
+    "valid_label": "August 2026"
   },
   "sdo": {
     "url": "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/sdo_polygons_latest.zip",
-    "last_checked": "2026-08-03T05:25:55.982Z",
+    "last_checked": "2026-08-03T05:43:01.633Z",
     "layer": "DO_Merge_Clip.shp",
     "bbox": [
       -179.15,
@@ -42,14 +56,26 @@
       179.77,
       71.39
     ],
-    "sha256": "4860b12982d8ed9bb1bbe665d0c99f15d779aba969fbc816965594ce7c0eb514",
     "status": "ok",
-    "last_changed": "2026-08-03T05:25:55.982Z",
+    "last_changed": "2026-08-03T05:43:01.633Z",
     "features": 5,
-    "output_bytes": 890863
+    "output_bytes": 890863,
+    "source_sha256": "4860b12982d8ed9bb1bbe665d0c99f15d779aba969fbc816965594ce7c0eb514",
+    "cache_key": "01e87a99cc39197b762f78b58859b3b83b98391ae02fb47d6ffcca3d6924f2e4",
+    "properties": [
+      "Outlook",
+      "FID_persis",
+      "FID_improv",
+      "FID_Remove",
+      "FID_dev",
+      "Fcst_Date",
+      "Target"
+    ],
+    "valid_raw": "October 31",
+    "valid_label": null
   },
   "_meta": {
-    "generated": "2026-08-03T05:25:55.982Z",
+    "generated": "2026-08-03T05:43:01.633Z",
     "fail_after_days": 3,
     "failing": [],
     "alerting": [],
