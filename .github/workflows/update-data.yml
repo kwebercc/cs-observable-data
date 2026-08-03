@@ -1,17 +1,19 @@
-# .github/workflows/update-data.yml
-name: Update data
+# .github/workflows/update-geo.yml
+name: Update geo data
 
 on:
   schedule:
-    - cron: "0 9 * * *"   # 09:00 UTC daily
-  workflow_dispatch:      # lets you run it by hand from the Actions tab
+    # 14:30 UTC daily — after USDM's Thursday ~8:30am ET release. Running
+    # every day is simpler than encoding release calendars, and unchanged
+    # archives are detected by hash and skipped before any conversion.
+    - cron: "30 14 * * *"
+  workflow_dispatch:
 
 permissions:
-  contents: write         # required for the bot to push
+  contents: write
 
-# Queue overlapping runs instead of letting them race to push.
 concurrency:
-  group: update-data
+  group: update-geo
   cancel-in-progress: false
 
 jobs:
@@ -20,27 +22,33 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0   # full history so the rebase below works cleanly
+          fetch-depth: 0
 
-      - name: Fetch and validate sources
-        run: node scripts/fetch-data.mjs
+      - name: Install GDAL
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gdal-bin
+          ogr2ogr --version
 
-      # Runs even if a source failed, so the manifest records the failure.
+      - name: Install topojson tools
+        run: npm install -g topojson-server topojson-simplify topojson-client
+
+      - name: Fetch and convert
+        run: node scripts/fetch-geo.mjs
+
       - name: Commit
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/
+          git add data/geo data/geo-manifest.json
 
           if git diff --staged --quiet; then
             echo "No changes to commit."
             exit 0
           fi
 
-          git commit -m "data: $(date -u +%Y-%m-%d)"
+          git commit -m "geo: $(date -u +%Y-%m-%d)"
 
-          # The remote may have moved since checkout. Rebase onto it and retry
-          # rather than failing the run over a race.
           for attempt in 1 2 3; do
             if git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push; then
               echo "Pushed on attempt ${attempt}."
@@ -53,10 +61,12 @@ jobs:
           echo "::error::Could not push after 3 attempts."
           exit 1
 
-      # Turn the run red so you get GitHub's failure email.
       - name: Report failures
         run: |
-          if grep -q '"status": "failed"' data/manifest.json; then
-            echo "::error::One or more sources failed — see data/manifest.json"
+          if grep -q '"alert": true' data/geo-manifest.json; then
+            echo "::error::A geo source has been failing past the grace period."
             exit 1
+          fi
+          if grep -q '"status": "failed"' data/geo-manifest.json; then
+            echo "::warning::A geo source failed today (within grace period)."
           fi
