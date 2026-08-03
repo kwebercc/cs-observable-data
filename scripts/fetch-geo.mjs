@@ -37,6 +37,7 @@ const SOURCES = [
     url: "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/mdo_polygons_latest.zip",
     shp: "DO_Merge_Clip.shp",          // archive also holds territory layers
     object: "mdo",
+    label: { field: "Target", mode: "month" },
     out: "data/geo/mdo.topojson",
     simplify: 0.12,
     quantize: 1e5,
@@ -47,6 +48,8 @@ const SOURCES = [
     url: "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/sdo_polygons_latest.zip",
     shp: "DO_Merge_Clip.shp",
     object: "sdo",
+    // Target is the LAST day of the 3-month period, e.g. 10/31/2026
+    label: { field: "Target", mode: "season", months: 3 },
     out: "data/geo/sdo.topojson",
     simplify: 0.12,
     quantize: 1e5,
@@ -56,6 +59,11 @@ const SOURCES = [
 
 const MANIFEST = "data/geo-manifest.json";
 const FAIL_AFTER_DAYS = 3;
+
+// Bump this whenever the conversion logic changes in a way that should force
+// every source to reprocess even if upstream hasn't republished. The cache key
+// below folds it in, so a code change invalidates stale output automatically.
+const PIPELINE_VERSION = 2;
 
 /** Recursively collects every .shp in a directory tree, with its size. */
 async function findShapefiles(dir) {
@@ -104,6 +112,91 @@ function pickShapefile(candidates, want, sourceName) {
   return largest;
 }
 
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
+/** "10/31/2026" -> { month: 10, day: 31, year: 2026 } */
+function parseUsDate(text) {
+  const m = String(text).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  return m ? { month: +m[1], day: +m[2], year: +m[3] } : null;
+}
+
+/** "Aug 2026" or "10/31/2026" -> "August 2026" */
+function monthLabel(text) {
+  const named = String(text).trim().match(/^([A-Za-z]+)\.?\s+(\d{4})$/);
+  if (named) {
+    const stem = named[1].toLowerCase().slice(0, 3);
+    const idx = MONTHS.findIndex(name => name.toLowerCase().startsWith(stem));
+    if (idx >= 0) return `${MONTHS[idx]} ${named[2]}`;
+  }
+  const d = parseUsDate(text);
+  return d ? `${MONTHS[d.month - 1]} ${d.year}` : null;
+}
+
+/**
+ * Turns the closing date of an n-month outlook into a span label.
+ * "10/31/2026" with months=3 -> "August-October 2026"
+ * Handles the year boundary: "1/31/2027" -> "November 2026-January 2027"
+ */
+function seasonLabel(text, months = 3) {
+  const d = parseUsDate(text);
+  if (!d) return null;
+
+  const endIdx = d.month - 1;
+  const startAbsolute = d.year * 12 + endIdx - (months - 1);
+  const startYear = Math.floor(startAbsolute / 12);
+  const startIdx = startAbsolute % 12;
+
+  return startYear === d.year
+    ? `${MONTHS[startIdx]}-${MONTHS[endIdx]} ${d.year}`
+    : `${MONTHS[startIdx]} ${startYear}-${MONTHS[endIdx]} ${d.year}`;
+}
+
+/**
+ * Reads feature properties out of an existing topojson and derives a display
+ * label. Runs on every pass, including cache hits, so tweaking label logic
+ * never requires reprocessing geometry.
+ */
+async function applyLabel(entry, src) {
+  if (!src.label || !existsSync(src.out)) return;
+
+  try {
+    const topo = JSON.parse(await readFile(src.out, "utf8"));
+    const props = topo.objects?.[src.object]?.geometries?.[0]?.properties;
+
+    if (!props || Object.keys(props).length === 0) {
+      console.warn(`${src.name}: topojson carries no feature properties — cannot derive a label`);
+      return;
+    }
+
+    entry.properties = Object.keys(props);   // so you can see what's available
+
+    // Match the configured field case-insensitively; shapefile DBF column
+    // names get mangled by different toolchains.
+    const key = Object.keys(props).find(
+      k => k.toLowerCase() === src.label.field.toLowerCase()
+    );
+    if (!key) {
+      console.warn(
+        `${src.name}: no "${src.label.field}" property. Available: ${Object.keys(props).join(", ")}`
+      );
+      return;
+    }
+
+    const raw = props[key];
+    entry.valid_raw = raw;
+    entry.valid_label = src.label.mode === "season"
+      ? seasonLabel(raw, src.label.months ?? 3)
+      : monthLabel(raw);
+
+    console.log(`${src.name}: ${key}="${raw}" -> "${entry.valid_label}"`);
+  } catch (err) {
+    console.warn(`${src.name}: could not derive label — ${err.message}`);
+  }
+}
+
 await mkdir("data/geo", { recursive: true });
 
 const manifest = existsSync(MANIFEST)
@@ -136,13 +229,28 @@ for (const src of SOURCES) {
     }
 
     // --- Change detection, via hash rather than a stored copy ---
-    const hash = createHash("sha256").update(buf).digest("hex");
-    const unchanged = entry.sha256 === hash && existsSync(src.out);
+    // The key covers the payload AND the settings that affect the output, so
+    // renaming the target layer or changing simplification forces a rebuild
+    // even when upstream hasn't republished the archive.
+    const sourceHash = createHash("sha256").update(buf).digest("hex");
+    const cacheKey = createHash("sha256")
+      .update(sourceHash)
+      .update(JSON.stringify({
+        v: PIPELINE_VERSION,
+        shp: src.shp ?? null,
+        object: src.object,
+        simplify: src.simplify,
+        quantize: src.quantize
+      }))
+      .digest("hex");
+
+    const unchanged = entry.cache_key === cacheKey && existsSync(src.out);
     if (unchanged) {
       entry.status = "ok";
       delete entry.error;
       delete entry.failing_since;
       console.log(`${src.name}: unchanged`);
+      await applyLabel(entry, src);
       continue;
     }
 
@@ -172,6 +280,8 @@ for (const src of SOURCES) {
       const m = path.basename(shp).match(src.dateFrom);
       if (m) {
         entry.valid_date = `${m[1].slice(0, 4)}-${m[1].slice(4, 6)}-${m[1].slice(6, 8)}`;
+        entry.valid_label =
+          `${MONTHS[Number(m[1].slice(4, 6)) - 1]} ${Number(m[1].slice(6, 8))}, ${m[1].slice(0, 4)}`;
       }
     }
 
@@ -207,7 +317,9 @@ for (const src of SOURCES) {
     }
 
     const bytes = (await readFile(src.out)).length;
-    entry.sha256 = hash;
+    entry.source_sha256 = sourceHash;   // upstream archive
+    entry.cache_key = cacheKey;         // archive + settings
+    delete entry.sha256;                // superseded by the two above
     entry.status = "ok";
     entry.last_changed = now;
     entry.features = geometries.length;
@@ -219,6 +331,8 @@ for (const src of SOURCES) {
       `${src.name}: updated — ${geometries.length} features, ` +
       `${(bytes / 1024).toFixed(0)} KB topojson`
     );
+
+    await applyLabel(entry, src);
 
   } catch (err) {
     // Leave the previous good topojson in place.
