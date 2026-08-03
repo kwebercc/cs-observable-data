@@ -1,0 +1,72 @@
+# .github/workflows/update-geo.yml
+name: Update geo data
+
+on:
+  schedule:
+    # 14:30 UTC daily — after USDM's Thursday ~8:30am ET release. Running
+    # every day is simpler than encoding release calendars, and unchanged
+    # archives are detected by hash and skipped before any conversion.
+    - cron: "30 14 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-geo
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install GDAL
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gdal-bin
+          ogr2ogr --version
+
+      - name: Install topojson tools
+        run: npm install -g topojson-server topojson-simplify topojson-client
+
+      - name: Fetch and convert
+        run: node scripts/fetch-geo.mjs
+
+      - name: Commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/geo data/geo-manifest.json
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "geo: $(date -u +%Y-%m-%d)"
+
+          for attempt in 1 2 3; do
+            if git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push; then
+              echo "Pushed on attempt ${attempt}."
+              exit 0
+            fi
+            echo "Push attempt ${attempt} failed; retrying."
+            sleep 5
+          done
+
+          echo "::error::Could not push after 3 attempts."
+          exit 1
+
+      - name: Report failures
+        run: |
+          if grep -q '"alert": true' data/geo-manifest.json; then
+            echo "::error::A geo source has been failing past the grace period."
+            exit 1
+          fi
+          if grep -q '"status": "failed"' data/geo-manifest.json; then
+            echo "::warning::A geo source failed today (within grace period)."
+          fi
