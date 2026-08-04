@@ -292,14 +292,14 @@ const SOURCES = [
 
   // --- NCEI Climate at a Glance -------------------------------------------
   // CAG updates monthly, so there's no reason to poll it every day.
-  {
+   {
     name: "global_hottest_years",
     url: `${CAG_BASE}/global/haywood/globe/tavg/land_ocean/12/data.json`,
     file: "data/global_hottest_years.json",
     derived: "data/global_hottest_years.csv",
     minBytes: 1000,
     minAgeHours: 20,
-    sniff: sniffCag(100),                         // record starts 1850
+    sniff: sniffCag(2000),                        // 1850-present, monthly YTD
     transform: transformCag
   },
   {
@@ -309,11 +309,9 @@ const SOURCES = [
     derived: "data/us_hottest_years.csv",
     minBytes: 1000,
     minAgeHours: 20,
-    sniff: sniffCag(100),                         // record starts 1895
+    sniff: sniffCag(1500),                        // 1895-present, monthly YTD
     transform: transformCag
-  }
-
-  ,
+  },
   // --- Climate Reanalyzer daily SST ---------------------------------------
   // Filenames match the source exactly, so switching a notebook over is just
   // a change of base URL. Updates daily, so no minAgeHours throttle.
