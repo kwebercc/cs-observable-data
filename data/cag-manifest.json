@@ -1,0 +1,310 @@
+{
+  "global_anomalies": {
+    "last_run": "2026-08-04T16:55:15.559Z",
+    "end_year": 2026,
+    "year_range": "1850-2026",
+    "expected": 1200,
+    "ok": 1200,
+    "changed": 1200,
+    "failed": 0,
+    "failures": [],
+    "status": "ok"
+  },
+  "us_temperature": {
+    "last_run": "2026-08-04T16:55:15.559Z",
+    "end_year": 2026,
+    "year_range": "1900-2026",
+    "expected": 1989,
+    "ok": 1946,
+    "changed": 1946,
+    "failed": 43,
+    "failures": [
+      {
+        "file": "51_tmin_1_1.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_tmin_1_2.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_tmin_1_3.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_tmin_1_4.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_tmin_1_5.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_tmin_1_6.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_tmin_1_7.json",
+        "error": "only 35 periods in payload"
+      },
+      {
+        "file": "51_tmin_1_8.json",
+        "error": "only 35 periods in payload"
+      },
+      {
+        "file": "6_tmin_1_9.json",
+        "error": "The operation was aborted due to timeout"
+      },
+      {
+        "file": "7_tmin_1_9.json",
+        "error": "The operation was aborted due to timeout"
+      },
+      {
+        "file": "8_tmin_1_9.json",
+        "error": "The operation was aborted due to timeout"
+      },
+      {
+        "file": "9_tmin_1_9.json",
+        "error": "The operation was aborted due to timeout"
+      },
+      {
+        "file": "51_tmin_1_9.json",
+        "error": "only 35 periods in payload"
+      },
+      {
+        "file": "51_tmin_1_10.json",
+        "error": "only 35 periods in payload"
+      },
+      {
+        "file": "51_tmin_1_11.json",
+        "error": "only 35 periods in payload"
+      },
+      {
+        "file": "51_tmin_1_12.json",
+        "error": "only 35 periods in payload"
+      },
+      {
+        "file": "51_tmin_12_12.json",
+        "error": "only 35 periods in payload"
+      },
+      {
+        "file": "51_tavg_1_1.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_tavg_1_2.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_tavg_1_3.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_tavg_1_4.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_tavg_1_5.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_tavg_1_6.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_tavg_1_7.json",
+        "error": "only 35 periods in payload"
+      },
+      {
+        "file": "51_tavg_1_8.json",
+        "error": "only 35 periods in payload"
+      }
+    ],
+    "status": "partial",
+    "failing_since": "2026-08-04T16:55:15.559Z"
+  },
+  "us_precipitation": {
+    "last_run": "2026-08-04T16:55:15.559Z",
+    "end_year": 2026,
+    "year_range": "1900-2026",
+    "expected": 663,
+    "ok": 650,
+    "changed": 650,
+    "failed": 13,
+    "failures": [
+      {
+        "file": "51_1_1.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_1_2.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_1_3.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_1_4.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_1_5.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_1_6.json",
+        "error": "only 36 periods in payload"
+      },
+      {
+        "file": "51_1_7.json",
+        "error": "only 35 periods in payload"
+      },
+      {
+        "file": "51_1_8.json",
+        "error": "only 35 periods in payload"
+      },
+      {
+        "file": "51_1_9.json",
+        "error": "only 35 periods in payload"
+      },
+      {
+        "file": "51_1_10.json",
+        "error": "only 35 periods in payload"
+      },
+      {
+        "file": "51_1_11.json",
+        "error": "only 35 periods in payload"
+      },
+      {
+        "file": "51_1_12.json",
+        "error": "only 35 periods in payload"
+      },
+      {
+        "file": "51_12_12.json",
+        "error": "only 35 periods in payload"
+      }
+    ],
+    "status": "partial",
+    "failing_since": "2026-08-04T16:55:15.559Z"
+  },
+  "us_degree_days": {
+    "last_run": "2026-08-04T16:55:15.559Z",
+    "end_year": 2026,
+    "year_range": "1895-2026",
+    "expected": 1326,
+    "ok": 1274,
+    "changed": 1274,
+    "failed": 52,
+    "failures": [
+      {
+        "file": "50_cdd_1_1.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "51_cdd_1_1.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "50_cdd_1_2.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "51_cdd_1_2.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "50_cdd_1_3.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "51_cdd_1_3.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "50_cdd_1_4.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "51_cdd_1_4.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "50_cdd_1_5.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "51_cdd_1_5.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "50_cdd_1_6.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "51_cdd_1_6.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "50_cdd_1_7.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "51_cdd_1_7.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "50_cdd_1_8.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "51_cdd_1_8.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "50_cdd_1_9.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "51_cdd_1_9.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "50_cdd_1_10.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "51_cdd_1_10.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "50_cdd_1_11.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "51_cdd_1_11.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "50_cdd_1_12.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "51_cdd_1_12.json",
+        "error": "HTTP 404"
+      },
+      {
+        "file": "50_cdd_12_12.json",
+        "error": "HTTP 404"
+      }
+    ],
+    "status": "partial",
+    "failing_since": "2026-08-04T16:55:15.559Z"
+  },
+  "_meta": {
+    "generated": "2026-08-04T16:55:15.559Z",
+    "fail_after_days": 3,
+    "alerting": [],
+    "alert": false
+  }
+}
