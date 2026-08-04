@@ -1,0 +1,63 @@
+# .github/workflows/update-cag.yml
+name: Update CAG data
+
+on:
+  schedule:
+    # Weekly, Mondays 15:00 UTC. CAG publishes monthly (usually the second
+    # week), so weekly catches an update within days without the daily job
+    # having to carry thousands of requests.
+    - cron: "0 15 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-cag
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60      # guard against a hang on 5,000+ requests
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Fetch CAG time series
+        run: node scripts/fetch-cag.mjs
+
+      - name: Commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/cag data/cag-manifest.json
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          # Thousands of files can change at once, so report the scale.
+          echo "Staged changes: $(git diff --staged --name-only | wc -l) files"
+          git commit -m "cag: $(date -u +%Y-%m-%d)"
+
+          for attempt in 1 2 3; do
+            if git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push; then
+              echo "Pushed on attempt ${attempt}."
+              exit 0
+            fi
+            echo "Push attempt ${attempt} failed; retrying."
+            sleep 5
+          done
+
+          echo "::error::Could not push after 3 attempts."
+          exit 1
+
+      - name: Report failures
+        run: |
+          if grep -q '"alert": true' data/cag-manifest.json; then
+            echo "::error::A CAG family is failing — see data/cag-manifest.json"
+            exit 1
+          fi
