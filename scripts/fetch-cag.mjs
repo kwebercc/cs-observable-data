@@ -64,11 +64,21 @@ const US_SLICES = [
   ...ANNUAL_END_MONTHS.map(m => ({ months: 12, end: m }))
 ];
 
-/** Global notebook adds seasonal (3-month) periods. */
+// endMonth = 0 is a special case on the global endpoint: instead of one month
+// sampled across years, it returns EVERY period of the given length as a
+// continuous series (e.g. 1/0 is every monthly anomaly since 1850).
+//
+// Confirmed for monthly (1/0). The 3 and 12 variants are plausible but
+// unverified — if either doesn't exist upstream it'll appear as a 404 in
+// cag-manifest.json's failures list, and can be trimmed from here.
+const ALL_PERIOD_TOTALS = [1, 3, 12];
+
+/** Global notebook adds seasonal (3-month) periods, plus the endMonth=0 series. */
 const GLOBAL_SLICES = [
   ...MONTHS.map(m => ({ months: 1, end: m })),
   ...MONTHS.map(m => ({ months: 3, end: m })),
-  ...ANNUAL_END_MONTHS.map(m => ({ months: 12, end: m }))
+  ...ANNUAL_END_MONTHS.map(m => ({ months: 12, end: m })),
+  ...ALL_PERIOD_TOTALS.map(months => ({ months, end: 0 }))
 ];
 
 // ---------------------------------------------------------------------------
