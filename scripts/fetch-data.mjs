@@ -384,7 +384,8 @@ for (const src of expandSources(SOURCES)) {
   const entry = (manifest[src.name] ??= {});
 
   // Throttle sources that update slower than we run.
-  if (src.minAgeHours && entry.last_checked && entry.status === "ok") {
+  if (src.minAgeHours && entry.last_checked && entry.status === "ok" &&
+      (!src.derived || existsSync(src.derived))) {
     const ageHours = (Date.now() - new Date(entry.last_checked)) / 3.6e6;
     if (ageHours < src.minAgeHours) {
       console.log(`${src.name}: skipped (checked ${ageHours.toFixed(1)}h ago)`);
@@ -435,7 +436,7 @@ for (const src of expandSources(SOURCES)) {
 
     // Derived output gets its own error boundary: a bad transform shouldn't
     // invalidate a mirror that fetched and validated fine.
-    if (src.transform && (changed || !existsSync(src.derived))) {
+   if (src.transform) {
       try {
         const csv = src.transform(buf);
         await writeFile(src.derived, csv);
