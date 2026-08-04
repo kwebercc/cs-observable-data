@@ -115,25 +115,50 @@ function parseCo2Weekly(text) {
 // ---------------------------------------------------------------------------
 
 /**
- * CAG payloads are { description: {...}, data: { "<period>": {value, anomaly} } }.
- * Period keys are a 4-digit year, sometimes with a 2-digit month suffix, so we
- * take the year off the front and keep the raw key too.
+ * CAG "haywood" payloads are
+ *   { description: {...}, data: { "<year>": { "<YYYYMM>": <number>, ... } } }
+ * — one entry per year holding up to twelve year-to-date figures, one per
+ * month-ending period. Flatten to one row per YYYYMM.
+ *
+ * Note the units differ by endpoint: global/haywood is a departure in degC,
+ * national/haywood is an absolute temperature in degF. Both land in `value`;
+ * check description.title/units in the mirrored JSON if you need to be sure.
+ *
+ * The flat time-series shape — data: { "<period>": { value, anomaly } } — is
+ * still accepted, so pointing a source at one of those keeps working.
  */
 function parseCag(text) {
   const json = JSON.parse(text);
   if (!json.data || typeof json.data !== "object") {
     throw new Error("payload has no data object");
   }
-  return Object.entries(json.data)
-    .map(([period, v]) => ({
-      period,
-      year: Number(String(period).slice(0, 4)),
-      value: v?.value === undefined ? null : Number(v.value),
-      anomaly: v?.anomaly === undefined ? null : Number(v.anomaly)
-    }))
+
+  const num = v => (v === undefined || v === null || v === "" ? null : Number(v));
+
+  const row = (period, value) => {
+    const p = String(period);
+    return {
+      period: p,
+      year: Number(p.slice(0, 4)),
+      month: p.length >= 6 ? Number(p.slice(4, 6)) : null,
+      value: num(value)
+    };
+  };
+
+  const rows = Object.entries(json.data).flatMap(([key, v]) => {
+    if (v === null || typeof v !== "object") return [row(key, v)];
+    // flat shape: the key is the period itself
+    if ("value" in v || "anomaly" in v) return [row(key, v.value ?? v.anomaly)];
+    // nested shape: the key is the year, inner keys are the periods
+    return Object.entries(v).map(([period, value]) => row(period, value));
+  });
+
+  return rows
     .filter(r => Number.isFinite(r.year))
-    .sort((a, b) => a.year - b.year);
+    .sort((a, b) => a.period.localeCompare(b.period));
 }
+
+const CAG_FIELDS = ["period", "year", "month", "value"];
 
 const sniffCag = min => buf => {
   try {
@@ -144,7 +169,7 @@ const sniffCag = min => buf => {
 };
 
 const transformCag = buf =>
-  toCsv(parseCag(buf.toString("utf8")), ["period", "year", "value", "anomaly"]);
+  toCsv(parseCag(buf.toString("utf8")), CAG_FIELDS);
 
 // ---------------------------------------------------------------------------
 // Climate Reanalyzer daily SST
