@@ -64,6 +64,21 @@ const US_SLICES = [
   ...ANNUAL_END_MONTHS.map(m => ({ months: 12, end: m }))
 ];
 
+// endMonth = 0 returns every period of the given length as one continuous
+// series rather than a single month sampled across years. The US notebooks
+// only expose monthly and annual, so 1/0 and 12/0 are the relevant pair.
+const US_ALL_SLICES = [1, 12].map(months => ({ months, end: 0 }));
+
+// Degree days is the same endpoint shape, so end=0 very likely works there
+// too — but that's unverified. If those come back 404 in the manifest, set
+// this to false and they stop being requested.
+const DD_INCLUDE_ALL_PERIODS = true;
+
+const US_TEMP_PCP_SLICES = [...US_SLICES, ...US_ALL_SLICES];
+const US_DD_SLICES = DD_INCLUDE_ALL_PERIODS
+  ? [...US_SLICES, ...US_ALL_SLICES]
+  : US_SLICES;
+
 // endMonth = 0 is a special case on the global endpoint: instead of one month
 // sampled across years, it returns EVERY period of the given length as a
 // continuous series (e.g. 1/0 is every monthly anomaly since 1850).
@@ -104,7 +119,7 @@ const FAMILIES = [
     startYear: 1900,
     probe: y => `${BASE}/national/time-series/110/tavg/1/1/1900-${y}/data.json`,
     combos: y => ["tmin", "tavg", "tmax"].flatMap(variable =>
-      US_SLICES.flatMap(s => [
+      US_TEMP_PCP_SLICES.flatMap(s => [
         // National (CONUS) uses code 110 on the /national/ endpoint.
         {
           file: `${OUT_DIR}/us-temp/110_${variable}_${s.months}_${s.end}.json`,
@@ -121,7 +136,7 @@ const FAMILIES = [
     name: "us_precipitation",
     startYear: 1900,
     probe: y => `${BASE}/national/time-series/110/pcp/1/1/1900-${y}/data.json`,
-    combos: y => US_SLICES.flatMap(s => [
+    combos: y => US_TEMP_PCP_SLICES.flatMap(s => [
       {
         file: `${OUT_DIR}/us-pcp/110_${s.months}_${s.end}.json`,
         url: `${BASE}/national/time-series/110/pcp/${s.months}/${s.end}/1900-${y}/data.json`
@@ -137,7 +152,7 @@ const FAMILIES = [
     startYear: 1895,
     probe: y => `${BASE}/national/time-series/110/cdd/1/1/1895-${y}/data.json`,
     combos: y => ["cdd", "hdd"].flatMap(param =>
-      US_SLICES.flatMap(s => [
+      US_DD_SLICES.flatMap(s => [
         {
           file: `${OUT_DIR}/us-dd/110_${param}_${s.months}_${s.end}.json`,
           url: `${BASE}/national/time-series/110/${param}/${s.months}/${s.end}/1895-${y}/data.json`
