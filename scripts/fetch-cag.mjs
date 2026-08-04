@@ -20,8 +20,12 @@ const BASE = "https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance";
 const OUT_DIR = "data/cag";
 const MANIFEST = "data/cag-manifest.json";
 
-const CONCURRENCY = 4;      // parallel requests; keep modest, it's a gov server
+const CONCURRENCY = 3;      // parallel requests; keep modest, it's a gov server
 const THROTTLE_MS = 120;    // spacing per worker
+const TIMEOUT_MS = 60_000;  // NCEI occasionally stalls; be patient
+const MIN_ROWS = 20;        // absolute floor — Hawaii's record starts 1991
+const MAX_SWEEPS = 3;       // extra passes over transient failures
+const MAX_COOLDOWN_MS = 30_000;
 const FAIL_AFTER_DAYS = 3;
 
 // ---------------------------------------------------------------------------
@@ -41,6 +45,11 @@ const STATE_CODES = [
   19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
   37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48
 ];
+
+// CAG's degree days come from nClimDiv, which is CONUS-only — Alaska (50) and
+// Hawaii (51) 404 for cdd/hdd. Skip them rather than logging 52 failures.
+const NO_DEGREE_DAYS = [50, 51];
+const DD_STATE_CODES = STATE_CODES.filter(c => !NO_DEGREE_DAYS.includes(c));
 
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
@@ -123,7 +132,7 @@ const FAMILIES = [
           file: `${OUT_DIR}/us-dd/110_${param}_${s.months}_${s.end}.json`,
           url: `${BASE}/national/time-series/110/${param}/${s.months}/${s.end}/1895-${y}/data.json`
         },
-        ...STATE_CODES.map(code => ({
+        ...DD_STATE_CODES.map(code => ({
           file: `${OUT_DIR}/us-dd/${code}_${param}_${s.months}_${s.end}.json`,
           url: `${BASE}/statewide/time-series/${code}/${param}/${s.months}/${s.end}/1895-${y}/data.json`
         }))
@@ -136,31 +145,91 @@ const FAMILIES = [
 // Validation
 // ---------------------------------------------------------------------------
 
-/** Confirms a CAG payload really is one, and has a plausible number of rows. */
-function validCag(text, minRows = 50) {
+/**
+ * Counts the period keys in a CAG payload. Returns null if it isn't parseable
+ * as one, so it can be used on a previously-stored file without throwing.
+ */
+function countPeriods(text) {
+  try {
+    const json = JSON.parse(text);
+    if (!json.data || typeof json.data !== "object") return null;
+    return Object.keys(json.data).filter(k => /^\d{4}/.test(k)).length;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Validates a CAG payload. The absolute floor is deliberately low, because
+ * record lengths vary a lot by geography — Hawaii's statewide series starts
+ * in 1991, so 35 periods is complete, not truncated. Truncation is caught by
+ * comparing against the previous copy instead, which self-calibrates per file.
+ */
+function validCag(text, previous = null) {
   const json = JSON.parse(text);
   if (!json.data || typeof json.data !== "object") {
     throw new Error("payload has no data object");
   }
-  const years = Object.keys(json.data).filter(k => /^\d{4}/.test(k));
-  if (years.length < minRows) {
-    throw new Error(`only ${years.length} periods in payload`);
+
+  const rows = Object.keys(json.data).filter(k => /^\d{4}/.test(k)).length;
+  if (rows < MIN_ROWS) {
+    throw new Error(`only ${rows} periods in payload`);
   }
-  return years.length;
+
+  if (previous) {
+    const before = countPeriods(previous);
+    // Allow a drop of one: CAG sometimes withdraws a provisional final period.
+    if (before !== null && rows < before - 1) {
+      throw new Error(`period count dropped ${before} -> ${rows}`);
+    }
+  }
+
+  return rows;
 }
+
+/** Errors worth another attempt later, versus a combination that doesn't exist. */
+const isTransient = message =>
+  /timeout|abort|ECONN|EAI_AGAIN|socket|fetch failed|HTTP 5\d\d|HTTP 429/i.test(message);
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-async function fetchText(url, attempts = 3) {
+/**
+ * Shared backpressure. A stalled server takes out every concurrent worker at
+ * once, and the worst response is for all of them to immediately retry. So a
+ * timeout sets a cooldown that ALL workers observe, escalating while the
+ * stalling continues and clearing on the first success.
+ */
+let cooldownUntil = 0;
+let consecutiveStalls = 0;
+
+async function respectCooldown() {
+  const wait = cooldownUntil - Date.now();
+  if (wait > 0) await sleep(wait);
+}
+
+function noteStall() {
+  consecutiveStalls++;
+  const pause = Math.min(MAX_COOLDOWN_MS, 2_000 * consecutiveStalls);
+  cooldownUntil = Math.max(cooldownUntil, Date.now() + pause);
+  if (consecutiveStalls === 1 || consecutiveStalls % 10 === 0) {
+    console.log(`  backing off ${(pause / 1000).toFixed(0)}s after ${consecutiveStalls} stall(s)`);
+  }
+}
+
+async function fetchText(url, attempts = 4) {
   let lastError;
   for (let i = 1; i <= attempts; i++) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(45_000) });
+      await respectCooldown();
+      const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.text();
+      const text = await res.text();
+      consecutiveStalls = 0;   // server is healthy again
+      return text;
     } catch (err) {
       lastError = err;
-      if (i < attempts) await sleep(500 * i);   // brief backoff
+      if (isTransient(String(err.message))) noteStall();
+      if (i < attempts) await sleep(750 * i);   // linear backoff
     }
   }
   throw lastError;
@@ -177,7 +246,7 @@ async function resolveEndYear(family) {
   for (const y of [thisYear, thisYear - 1, thisYear - 2]) {
     try {
       const text = await fetchText(family.probe(y), 2);
-      validCag(text);
+      validCag(text);   // shape only; no previous copy to compare against
       return y;
     } catch {
       // try the next candidate
@@ -226,34 +295,71 @@ for (const family of FAMILIES) {
     for (const dir of dirs) await mkdir(dir, { recursive: true });
 
     let ok = 0, changed = 0;
-    const failures = [];
+    let failures = [];
+
+    const attempt = async combo => {
+      // Read the previous copy first: it both seeds the shrink check and lets
+      // us skip the write when nothing changed.
+      const previous = existsSync(combo.file)
+        ? await readFile(combo.file, "utf8")
+        : null;
+
+      const text = await fetchText(combo.url);
+      validCag(text, previous);
+
+      if (text !== previous) {
+        await writeFile(combo.file, text);
+        changed++;
+      }
+      ok++;
+    };
 
     await runPool(combos, async combo => {
       try {
-        const text = await fetchText(combo.url);
-        validCag(text);
-
-        // Compare before writing so unchanged files stay out of the diff.
-        const previous = existsSync(combo.file)
-          ? await readFile(combo.file, "utf8")
-          : null;
-        if (text !== previous) {
-          await writeFile(combo.file, text);
-          changed++;
-        }
-        ok++;
+        await attempt(combo);
       } catch (err) {
-        // Record and move on — one dead combination shouldn't sink the family.
-        failures.push({ file: path.basename(combo.file), error: String(err.message) });
+        // Record and move on — one bad combination shouldn't sink the family.
+        failures.push({ combo, error: String(err.message) });
       }
     }, CONCURRENCY);
+
+    // Sweep transient failures repeatedly, serially, with a growing pause
+    // between passes. Real 404s are left alone — retrying those is pointless.
+    for (let sweep = 1; sweep <= MAX_SWEEPS; sweep++) {
+      const retryable = failures.filter(f => isTransient(f.error));
+      if (retryable.length === 0) break;
+
+      const pause = 5_000 * sweep;
+      console.log(
+        `${family.name}: sweep ${sweep}/${MAX_SWEEPS} — ` +
+        `${retryable.length} transient failure(s), pausing ${pause / 1000}s first`
+      );
+      await sleep(pause);
+
+      const stillFailing = [];
+      for (const f of retryable) {
+        try {
+          await attempt(f.combo);
+        } catch (err) {
+          stillFailing.push({ combo: f.combo, error: String(err.message) });
+        }
+        await sleep(600);
+      }
+
+      const recovered = retryable.length - stillFailing.length;
+      console.log(`${family.name}: sweep ${sweep} recovered ${recovered}`);
+      failures = failures.filter(f => !isTransient(f.error)).concat(stillFailing);
+    }
 
     entry.expected = combos.length;
     entry.ok = ok;
     entry.changed = changed;
     entry.failed = failures.length;
     // Cap the stored list; a systemic outage would otherwise bloat the manifest.
-    entry.failures = failures.slice(0, 25);
+    entry.failures = failures
+      .slice(0, 25)
+      .map(f => ({ file: path.basename(f.combo.file), error: f.error }));
+    entry.transient_failed = failures.filter(f => isTransient(f.error)).length;
     entry.status = failures.length === 0 ? "ok" : "partial";
 
     if (failures.length === 0) {
