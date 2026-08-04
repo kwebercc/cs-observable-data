@@ -1,42 +1,42 @@
 {
   "global_anomalies": {
-    "last_run": "2026-08-04T17:35:48.159Z",
-    "end_year": 2025,
-    "year_range": "1850-2025",
-    "expected": 1200,
-    "ok": 1200,
-    "changed": 576,
+    "last_run": "2026-08-04T17:59:23.717Z",
+    "end_year": 2026,
+    "year_range": "1850-2026",
+    "expected": 1344,
+    "ok": 1344,
+    "changed": 720,
     "failed": 0,
     "failures": [],
     "status": "ok",
     "transient_failed": 0
   },
   "us_temperature": {
-    "last_run": "2026-08-04T17:35:48.159Z",
+    "last_run": "2026-08-04T17:59:23.717Z",
     "end_year": 2026,
     "year_range": "1900-2026",
     "expected": 1989,
     "ok": 1989,
-    "changed": 43,
+    "changed": 0,
     "failed": 0,
     "failures": [],
     "status": "ok",
     "transient_failed": 0
   },
   "us_precipitation": {
-    "last_run": "2026-08-04T17:35:48.159Z",
+    "last_run": "2026-08-04T17:59:23.717Z",
     "end_year": 2026,
     "year_range": "1900-2026",
     "expected": 663,
     "ok": 663,
-    "changed": 13,
+    "changed": 0,
     "failed": 0,
     "failures": [],
     "status": "ok",
     "transient_failed": 0
   },
   "us_degree_days": {
-    "last_run": "2026-08-04T17:35:48.159Z",
+    "last_run": "2026-08-04T17:59:23.717Z",
     "end_year": 2026,
     "year_range": "1895-2026",
     "expected": 1274,
@@ -48,7 +48,7 @@
     "transient_failed": 0
   },
   "_meta": {
-    "generated": "2026-08-04T17:35:48.159Z",
+    "generated": "2026-08-04T17:59:23.717Z",
     "fail_after_days": 3,
     "alerting": [],
     "alert": false
