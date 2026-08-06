@@ -115,50 +115,25 @@ function parseCo2Weekly(text) {
 // ---------------------------------------------------------------------------
 
 /**
- * CAG "haywood" payloads are
- *   { description: {...}, data: { "<year>": { "<YYYYMM>": <number>, ... } } }
- * — one entry per year holding up to twelve year-to-date figures, one per
- * month-ending period. Flatten to one row per YYYYMM.
- *
- * Note the units differ by endpoint: global/haywood is a departure in degC,
- * national/haywood is an absolute temperature in degF. Both land in `value`;
- * check description.title/units in the mirrored JSON if you need to be sure.
- *
- * The flat time-series shape — data: { "<period>": { value, anomaly } } — is
- * still accepted, so pointing a source at one of those keeps working.
+ * CAG payloads are { description: {...}, data: { "<period>": {value, anomaly} } }.
+ * Period keys are a 4-digit year, sometimes with a 2-digit month suffix, so we
+ * take the year off the front and keep the raw key too.
  */
 function parseCag(text) {
   const json = JSON.parse(text);
   if (!json.data || typeof json.data !== "object") {
     throw new Error("payload has no data object");
   }
-
-  const num = v => (v === undefined || v === null || v === "" ? null : Number(v));
-
-  const row = (period, value) => {
-    const p = String(period);
-    return {
-      period: p,
-      year: Number(p.slice(0, 4)),
-      month: p.length >= 6 ? Number(p.slice(4, 6)) : null,
-      value: num(value)
-    };
-  };
-
-  const rows = Object.entries(json.data).flatMap(([key, v]) => {
-    if (v === null || typeof v !== "object") return [row(key, v)];
-    // flat shape: the key is the period itself
-    if ("value" in v || "anomaly" in v) return [row(key, v.value ?? v.anomaly)];
-    // nested shape: the key is the year, inner keys are the periods
-    return Object.entries(v).map(([period, value]) => row(period, value));
-  });
-
-  return rows
+  return Object.entries(json.data)
+    .map(([period, v]) => ({
+      period,
+      year: Number(String(period).slice(0, 4)),
+      value: v?.value === undefined ? null : Number(v.value),
+      anomaly: v?.anomaly === undefined ? null : Number(v.anomaly)
+    }))
     .filter(r => Number.isFinite(r.year))
-    .sort((a, b) => a.period.localeCompare(b.period));
+    .sort((a, b) => a.year - b.year);
 }
-
-const CAG_FIELDS = ["period", "year", "month", "value"];
 
 const sniffCag = min => buf => {
   try {
@@ -169,7 +144,7 @@ const sniffCag = min => buf => {
 };
 
 const transformCag = buf =>
-  toCsv(parseCag(buf.toString("utf8")), CAG_FIELDS);
+  toCsv(parseCag(buf.toString("utf8")), ["period", "year", "value", "anomaly"]);
 
 // ---------------------------------------------------------------------------
 // Climate Reanalyzer daily SST
@@ -187,6 +162,107 @@ const sniffSst = buf => {
     return false;   // not JSON at all, or wrong shape
   }
 };
+
+// ---------------------------------------------------------------------------
+// University of Colorado global mean sea level
+// ---------------------------------------------------------------------------
+
+// The release is baked into both the directory and the filename
+// (.../2026_rel1/gmsl_2026rel1_seasons_rmvd.txt) and rolls over a few times a
+// year, so the URL has to be discovered rather than hardcoded. The MIRRORED
+// filename stays fixed, so notebooks never have to care.
+const GMSL_TEMPLATE = (y, rel) =>
+  `https://sealevel.colorado.edu/files/${y}_rel${rel}/gmsl_${y}rel${rel}_seasons_rmvd.txt`;
+
+async function resolveGmslUrl(entry) {
+  const thisYear = new Date().getUTCFullYear();
+  // Newest first, so a fresh release is picked up as soon as it appears.
+  for (let y = thisYear + 1; y >= thisYear - 2; y--) {
+    for (let rel = 4; rel >= 1; rel--) {
+      const url = GMSL_TEMPLATE(y, rel);
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+        if (res.ok) {
+          entry.release = `${y}_rel${rel}`;
+          return url;
+        }
+      } catch {
+        // network hiccup on a probe; keep going
+      }
+    }
+  }
+  throw new Error("no GMSL release found in the probed range");
+}
+
+/** Converts a decimal year (1993.5) to an ISO date, honouring leap years. */
+function decimalYearToDate(dy) {
+  const y = Math.floor(dy);
+  const start = Date.UTC(y, 0, 1);
+  const end = Date.UTC(y + 1, 0, 1);
+  return new Date(start + (dy - y) * (end - start)).toISOString().slice(0, 10);
+}
+
+/** Two columns after a single "#" header: decimal year, GMSL in mm. */
+function parseGmsl(text) {
+  return text.split(/\r?\n/).flatMap(line => {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) return [];
+    const [a, b] = t.split(/\s+/);
+    const decimal_year = Number(a);
+    const gmsl_mm = Number(b);
+    if (!Number.isFinite(decimal_year) || !Number.isFinite(gmsl_mm)) return [];
+    if (decimal_year < 1990 || decimal_year > 2100) return [];
+    return [{ decimal_year, gmsl_mm, date: decimalYearToDate(decimal_year) }];
+  }).sort((a, b) => a.decimal_year - b.decimal_year);
+}
+
+// ---------------------------------------------------------------------------
+// JMA global ocean heat content
+// ---------------------------------------------------------------------------
+
+// Note the column-header row (" Year  A(0-700) ...") is NOT commented, so the
+// year test below is what rejects it — a "#"-only filter would let it through.
+const OHC_COLUMNS = ["year", "a_0_700", "a_700_2000", "a_0_2000", "e_0_2000"];
+
+function parseOhc(text) {
+  return text.split(/\r?\n/).flatMap(line => {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) return [];
+    const cols = t.split(/\s+/);
+    if (!/^\d{4}$/.test(cols[0])) return [];   // drops the header row
+
+    const row = {};
+    OHC_COLUMNS.forEach((name, i) => { row[name] = Number(cols[i]); });
+    if (!Number.isFinite(row.a_0_2000)) return [];
+    return [row];
+  }).sort((a, b) => a.year - b.year);
+}
+
+// ---------------------------------------------------------------------------
+// NSIDC Sea Ice Index v4 — daily extent
+// ---------------------------------------------------------------------------
+
+// The raw CSV's trailing "Source Data" column holds a bracketed list that can
+// itself contain commas, which breaks naive CSV parsers. The derived file
+// drops it and adds a proper date, so d3.csv works without special handling.
+const SEAICE_COLUMNS = ["year", "month", "day", "extent", "missing", "date"];
+
+function parseSeaIce(text) {
+  return text.split(/\r?\n/).flatMap(line => {
+    const cols = line.split(",").map(c => c.trim());
+    const [year, month, day, extent, missing] = cols.map(Number);
+    // Skips both header rows: the names row and the units row.
+    if (![year, month, day].every(Number.isFinite)) return [];
+    if (year < 1970 || month < 1 || month > 12 || day < 1 || day > 31) return [];
+    if (!Number.isFinite(extent) || extent <= 0) return [];
+
+    return [{
+      year, month, day, extent,
+      missing: Number.isFinite(missing) ? missing : "",
+      date: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    }];
+  }).sort((a, b) => a.date.localeCompare(b.date));
+}
 
 const SST_BASE = "https://climatereanalyzer.org/clim/sst_daily/json_2clim";
 
@@ -292,14 +368,14 @@ const SOURCES = [
 
   // --- NCEI Climate at a Glance -------------------------------------------
   // CAG updates monthly, so there's no reason to poll it every day.
-   {
+  {
     name: "global_hottest_years",
     url: `${CAG_BASE}/global/haywood/globe/tavg/land_ocean/12/data.json`,
     file: "data/global_hottest_years.json",
     derived: "data/global_hottest_years.csv",
     minBytes: 1000,
     minAgeHours: 20,
-    sniff: sniffCag(2000),                        // 1850-present, monthly YTD
+    sniff: sniffCag(100),                         // record starts 1850
     transform: transformCag
   },
   {
@@ -309,9 +385,41 @@ const SOURCES = [
     derived: "data/us_hottest_years.csv",
     minBytes: 1000,
     minAgeHours: 20,
-    sniff: sniffCag(1500),                        // 1895-present, monthly YTD
+    sniff: sniffCag(100),                         // record starts 1895
     transform: transformCag
+  }
+  ,
+  {
+    name: "gmsl",
+    resolveUrl: resolveGmslUrl,          // release-versioned; discovered each run
+    file: "data/gmsl.txt",
+    derived: "data/gmsl.csv",
+    minBytes: 5000,
+    minAgeHours: 20,                     // CU updates roughly every two months
+    sniff: buf => parseGmsl(buf.toString("utf8")).length >= 500,
+    transform: buf => toCsv(parseGmsl(buf.toString("utf8")),
+                            ["decimal_year", "gmsl_mm", "date"])
   },
+  {
+    name: "ohc",
+    url: "https://www.data.jma.go.jp/kaiyou/data/english/ohc/ohc_global_1955.txt",
+    file: "data/ohc_global_1955.txt",
+    derived: "data/ohc.csv",
+    minBytes: 1000,
+    minAgeHours: 20,                     // JMA revises roughly annually
+    sniff: buf => parseOhc(buf.toString("utf8")).length >= 50,
+    transform: buf => toCsv(parseOhc(buf.toString("utf8")), OHC_COLUMNS)
+  },
+  {
+    name: "seaice_arctic",
+    url: "https://noaadata.apps.nsidc.org/NOAA/G02135/north/daily/data/N_seaice_extent_daily_v4.0.csv",
+    file: "data/N_seaice_extent_daily_v4.0.csv",
+    derived: "data/seaice_arctic.csv",
+    minBytes: 200_000,
+    sniff: buf => parseSeaIce(buf.toString("utf8")).length >= 10_000,
+    transform: buf => toCsv(parseSeaIce(buf.toString("utf8")), SEAICE_COLUMNS)
+  },
+
   // --- Climate Reanalyzer daily SST ---------------------------------------
   // Filenames match the source exactly, so switching a notebook over is just
   // a change of base URL. Updates daily, so no minAgeHours throttle.
@@ -366,7 +474,7 @@ function expandSources(sources) {
 
 const MANIFEST = "data/manifest.json";
 const MAX_SHRINK = 0.5;   // reject a file that's less than half its old size
-const FAIL_AFTER_DAYS = 1; // days a source must be failing before the run goes red
+const FAIL_AFTER_DAYS = 3; // days a source must be failing before the run goes red
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -384,8 +492,7 @@ for (const src of expandSources(SOURCES)) {
   const entry = (manifest[src.name] ??= {});
 
   // Throttle sources that update slower than we run.
-  if (src.minAgeHours && entry.last_checked && entry.status === "ok" &&
-      (!src.derived || existsSync(src.derived))) {
+  if (src.minAgeHours && entry.last_checked && entry.status === "ok") {
     const ageHours = (Date.now() - new Date(entry.last_checked)) / 3.6e6;
     if (ageHours < src.minAgeHours) {
       console.log(`${src.name}: skipped (checked ${ageHours.toFixed(1)}h ago)`);
@@ -393,13 +500,16 @@ for (const src of expandSources(SOURCES)) {
     }
   }
 
-  entry.url = src.url;
   entry.last_checked = now;
 
   try {
     if (src.throttleMs) await sleep(src.throttleMs);
 
-    const res = await fetch(src.url, { signal: AbortSignal.timeout(60_000) });
+    // Sources whose URL changes between releases resolve it at runtime.
+    const url = src.resolveUrl ? await src.resolveUrl(entry) : src.url;
+    entry.url = url;
+
+    const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const buf = Buffer.from(await res.arrayBuffer());
@@ -436,7 +546,7 @@ for (const src of expandSources(SOURCES)) {
 
     // Derived output gets its own error boundary: a bad transform shouldn't
     // invalidate a mirror that fetched and validated fine.
-   if (src.transform) {
+    if (src.transform && (changed || !existsSync(src.derived))) {
       try {
         const csv = src.transform(buf);
         await writeFile(src.derived, csv);
