@@ -163,6 +163,136 @@ const sniffSst = buf => {
   }
 };
 
+// ---------------------------------------------------------------------------
+// University of Colorado global mean sea level
+// ---------------------------------------------------------------------------
+
+// The release is baked into both the directory and the filename
+// (.../2026_rel1/gmsl_2026rel1_seasons_rmvd.txt) and rolls over a few times a
+// year, so the URL has to be discovered rather than hardcoded. The MIRRORED
+// filename stays fixed, so notebooks never have to care.
+const GMSL_TEMPLATE = (y, rel) =>
+  `https://sealevel.colorado.edu/files/${y}_rel${rel}/gmsl_${y}rel${rel}_seasons_rmvd.txt`;
+
+const GMSL_PROBE_TIMEOUT_MS = 10_000;   // short: this loop runs before anything else
+
+/**
+ * Finds the current CU release without an unbounded probe loop.
+ *
+ * The naive version walked ~16 candidates at a 20s timeout, which meant an
+ * unreachable host could stall the whole job for five minutes before any other
+ * source was touched. Instead: build a newest-first list, and if we already
+ * know which release we used last time, stop the list there — we only ever
+ * need to check whether something NEWER has appeared, then fall back to the
+ * one we know works. That's typically 1-4 requests.
+ */
+async function resolveGmslUrl(entry) {
+  const thisYear = new Date().getUTCFullYear();
+
+  const candidates = [];
+  for (let y = thisYear; y >= thisYear - 1; y--) {
+    for (let rel = 3; rel >= 1; rel--) {
+      candidates.push({ key: `${y}_rel${rel}`, url: GMSL_TEMPLATE(y, rel) });
+    }
+  }
+
+  // Truncate at the known-good release: everything after it is older and
+  // irrelevant, everything before it is a potential new release.
+  if (entry.release) {
+    const known = candidates.findIndex(c => c.key === entry.release);
+    if (known >= 0) candidates.length = known + 1;
+  }
+
+  for (const candidate of candidates) {
+    try {
+      const res = await fetch(candidate.url, {
+        signal: AbortSignal.timeout(GMSL_PROBE_TIMEOUT_MS)
+      });
+      if (res.ok) {
+        if (entry.release !== candidate.key) {
+          console.log(`gmsl: release ${entry.release ?? "(none)"} -> ${candidate.key}`);
+        }
+        entry.release = candidate.key;
+        return candidate.url;
+      }
+    } catch {
+      // Probe failed; try the next candidate.
+    }
+  }
+
+  throw new Error(`no GMSL release found (probed ${candidates.length})`);
+}
+
+/** Converts a decimal year (1993.5) to an ISO date, honouring leap years. */
+function decimalYearToDate(dy) {
+  const y = Math.floor(dy);
+  const start = Date.UTC(y, 0, 1);
+  const end = Date.UTC(y + 1, 0, 1);
+  return new Date(start + (dy - y) * (end - start)).toISOString().slice(0, 10);
+}
+
+/** Two columns after a single "#" header: decimal year, GMSL in mm. */
+function parseGmsl(text) {
+  return text.split(/\r?\n/).flatMap(line => {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) return [];
+    const [a, b] = t.split(/\s+/);
+    const decimal_year = Number(a);
+    const gmsl_mm = Number(b);
+    if (!Number.isFinite(decimal_year) || !Number.isFinite(gmsl_mm)) return [];
+    if (decimal_year < 1990 || decimal_year > 2100) return [];
+    return [{ decimal_year, gmsl_mm, date: decimalYearToDate(decimal_year) }];
+  }).sort((a, b) => a.decimal_year - b.decimal_year);
+}
+
+// ---------------------------------------------------------------------------
+// JMA global ocean heat content
+// ---------------------------------------------------------------------------
+
+// Note the column-header row (" Year  A(0-700) ...") is NOT commented, so the
+// year test below is what rejects it — a "#"-only filter would let it through.
+const OHC_COLUMNS = ["year", "a_0_700", "a_700_2000", "a_0_2000", "e_0_2000"];
+
+function parseOhc(text) {
+  return text.split(/\r?\n/).flatMap(line => {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) return [];
+    const cols = t.split(/\s+/);
+    if (!/^\d{4}$/.test(cols[0])) return [];   // drops the header row
+
+    const row = {};
+    OHC_COLUMNS.forEach((name, i) => { row[name] = Number(cols[i]); });
+    if (!Number.isFinite(row.a_0_2000)) return [];
+    return [row];
+  }).sort((a, b) => a.year - b.year);
+}
+
+// ---------------------------------------------------------------------------
+// NSIDC Sea Ice Index v4 — daily extent
+// ---------------------------------------------------------------------------
+
+// The raw CSV's trailing "Source Data" column holds a bracketed list that can
+// itself contain commas, which breaks naive CSV parsers. The derived file
+// drops it and adds a proper date, so d3.csv works without special handling.
+const SEAICE_COLUMNS = ["year", "month", "day", "extent", "missing", "date"];
+
+function parseSeaIce(text) {
+  return text.split(/\r?\n/).flatMap(line => {
+    const cols = line.split(",").map(c => c.trim());
+    const [year, month, day, extent, missing] = cols.map(Number);
+    // Skips both header rows: the names row and the units row.
+    if (![year, month, day].every(Number.isFinite)) return [];
+    if (year < 1970 || month < 1 || month > 12 || day < 1 || day > 31) return [];
+    if (!Number.isFinite(extent) || extent <= 0) return [];
+
+    return [{
+      year, month, day, extent,
+      missing: Number.isFinite(missing) ? missing : "",
+      date: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    }];
+  }).sort((a, b) => a.date.localeCompare(b.date));
+}
+
 const SST_BASE = "https://climatereanalyzer.org/clim/sst_daily/json_2clim";
 
 // Basin codes as they appear in the filenames, paired with a short id.
@@ -289,6 +419,38 @@ const SOURCES = [
   }
 
   ,
+  {
+    name: "gmsl",
+    resolveUrl: resolveGmslUrl,          // release-versioned; discovered each run
+    file: "data/gmsl.txt",
+    derived: "data/gmsl.csv",
+    minBytes: 5000,
+    minAgeHours: 20,                     // CU updates roughly every two months
+    sniff: buf => parseGmsl(buf.toString("utf8")).length >= 500,
+    transform: buf => toCsv(parseGmsl(buf.toString("utf8")),
+                            ["decimal_year", "gmsl_mm", "date"])
+  },
+  {
+    name: "ohc",
+    url: "https://www.data.jma.go.jp/kaiyou/data/english/ohc/ohc_global_1955.txt",
+    file: "data/ohc_global_1955.txt",
+    derived: "data/ohc.csv",
+    minBytes: 1000,
+    minAgeHours: 20,                     // JMA revises roughly annually
+    sniff: buf => parseOhc(buf.toString("utf8")).length >= 50,
+    transform: buf => toCsv(parseOhc(buf.toString("utf8")), OHC_COLUMNS)
+  },
+  {
+    name: "seaice_arctic",
+    url: "https://noaadata.apps.nsidc.org/NOAA/G02135/north/daily/data/N_seaice_extent_daily_v4.0.csv",
+    timeoutMs: 90_000,                   // ~2 MB, and NSIDC can be slow
+    file: "data/N_seaice_extent_daily_v4.0.csv",
+    derived: "data/seaice_arctic.csv",
+    minBytes: 200_000,
+    sniff: buf => parseSeaIce(buf.toString("utf8")).length >= 10_000,
+    transform: buf => toCsv(parseSeaIce(buf.toString("utf8")), SEAICE_COLUMNS)
+  },
+
   // --- Climate Reanalyzer daily SST ---------------------------------------
   // Filenames match the source exactly, so switching a notebook over is just
   // a change of base URL. Updates daily, so no minAgeHours throttle.
@@ -369,13 +531,17 @@ for (const src of expandSources(SOURCES)) {
     }
   }
 
-  entry.url = src.url;
   entry.last_checked = now;
+  const startedAt = Date.now();
 
   try {
     if (src.throttleMs) await sleep(src.throttleMs);
 
-    const res = await fetch(src.url, { signal: AbortSignal.timeout(60_000) });
+    // Sources whose URL changes between releases resolve it at runtime.
+    const url = src.resolveUrl ? await src.resolveUrl(entry) : src.url;
+    entry.url = url;
+
+    const res = await fetch(url, { signal: AbortSignal.timeout(src.timeoutMs ?? 45_000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const buf = Buffer.from(await res.arrayBuffer());
@@ -424,7 +590,11 @@ for (const src of expandSources(SOURCES)) {
       }
     }
 
-    console.log(`${src.name}: ${changed ? "updated" : "unchanged"} (${buf.length} bytes)`);
+    entry.seconds = Math.round((Date.now() - startedAt) / 100) / 10;
+    console.log(
+      `${src.name}: ${changed ? "updated" : "unchanged"} ` +
+      `(${buf.length} bytes, ${entry.seconds}s)`
+    );
 
   } catch (err) {
     // Note what failed, but leave the existing good file untouched.
@@ -432,8 +602,12 @@ for (const src of expandSources(SOURCES)) {
     entry.error = String(err.message);
     entry.failing_since ??= now;   // first failure of this streak
 
+    entry.seconds = Math.round((Date.now() - startedAt) / 100) / 10;
     const days = (Date.now() - new Date(entry.failing_since)) / 864e5;
-    console.error(`${src.name}: FAILED — ${err.message} (failing ${days.toFixed(1)}d)`);
+    console.error(
+      `${src.name}: FAILED after ${entry.seconds}s — ${err.message} ` +
+      `(failing ${days.toFixed(1)}d)`
+    );
   }
 }
 
