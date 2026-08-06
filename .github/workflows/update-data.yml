@@ -13,15 +13,17 @@ on:
 permissions:
   contents: write         # required for the bot to push
 
-# Queue overlapping runs instead of letting them race to push.
+# Supersede rather than queue: if a run is stuck, a new one should replace it
+# instead of waiting behind it. Safe here because the script is idempotent —
+# a cancelled run just leaves the previous data in place.
 concurrency:
   group: update-data
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 15    # a hung fetch shouldn't hold the lock for 6 hours
+    timeout-minutes: 10    # a hung fetch shouldn't hold the lock for 6 hours
     steps:
       - uses: actions/checkout@v5
         with:
