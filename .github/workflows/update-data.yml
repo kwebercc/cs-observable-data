@@ -3,7 +3,11 @@ name: Update data
 
 on:
   schedule:
-    - cron: "0 9 * * *"   # 09:00 UTC daily
+    # Twice daily. Climate Reanalyzer publishes its OISST update partway
+    # through the day, so a single morning run always trails it by one day.
+    # The evening pass catches it; unchanged sources are no-ops either way.
+    - cron: "0 9 * * *"
+    - cron: "0 22 * * *"
   workflow_dispatch:      # lets you run it by hand from the Actions tab
 
 permissions:
@@ -17,6 +21,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 15    # a hung fetch shouldn't hold the lock for 6 hours
     steps:
       - uses: actions/checkout@v5
         with:
