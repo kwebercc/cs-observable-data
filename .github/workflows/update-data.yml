@@ -7,7 +7,8 @@ on:
     # through the day, so a single morning run always trails it by one day.
     # The evening pass catches it; unchanged sources are no-ops either way.
     - cron: "0 9 * * *"
-    - cron: "0 22 * * *"
+    - cron: "0 15 * * *"
+    - cron: "0 21 * * *"
   workflow_dispatch:      # lets you run it by hand from the Actions tab
 
 permissions:
