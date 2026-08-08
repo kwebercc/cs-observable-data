@@ -1,7 +1,7 @@
 {
   "usdm": {
     "url": "https://droughtmonitor.unl.edu/data/shapefiles_m/USDM_current_M.zip",
-    "last_checked": "2026-08-07T15:23:46.416Z",
+    "last_checked": "2026-08-08T14:58:01.237Z",
     "layer": "USDM_20260804.shp",
     "valid_date": "2026-08-04",
     "bbox": [
@@ -20,7 +20,7 @@
   },
   "mdo": {
     "url": "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/mdo_polygons_latest.zip",
-    "last_checked": "2026-08-07T15:23:46.416Z",
+    "last_checked": "2026-08-08T14:58:01.237Z",
     "layer": "DO_Merge_Clip.shp",
     "bbox": [
       -179.15,
@@ -48,7 +48,7 @@
   },
   "sdo": {
     "url": "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/sdo_polygons_latest.zip",
-    "last_checked": "2026-08-07T15:23:46.416Z",
+    "last_checked": "2026-08-08T14:58:01.237Z",
     "layer": "DO_Merge_Clip.shp",
     "bbox": [
       -179.15,
@@ -75,7 +75,7 @@
     "valid_label": "August-October 2026"
   },
   "_meta": {
-    "generated": "2026-08-07T15:23:46.416Z",
+    "generated": "2026-08-08T14:58:01.237Z",
     "fail_after_days": 3,
     "failing": [],
     "alerting": [],
