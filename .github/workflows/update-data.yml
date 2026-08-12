@@ -3,9 +3,9 @@ name: Update data
 
 on:
   schedule:
-    # Twice daily. Climate Reanalyzer publishes its OISST update partway
+    # Three times daily. Climate Reanalyzer publishes its OISST update partway
     # through the day, so a single morning run always trails it by one day.
-    # The evening pass catches it; unchanged sources are no-ops either way.
+    # Unchanged sources are no-ops, so the extra passes cost almost nothing.
     - cron: "0 9 * * *"
     - cron: "0 16 * * *"
     - cron: "0 21 * * *"
@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write         # required for the bot to push
+  issues: write           # required to open/comment the alert issue
 
 # Supersede rather than queue: if a run is stuck, a new one should replace it
 # instead of waiting behind it. Safe here because the script is idempotent —
@@ -35,6 +36,7 @@ jobs:
 
       # Runs even if a source failed, so the manifest records the failure.
       - name: Commit
+        if: always()
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -61,14 +63,48 @@ jobs:
           echo "::error::Could not push after 3 attempts."
           exit 1
 
-      # Turn the run red only once a source is past its grace period, so a
-      # one-day upstream outage doesn't train you to ignore the emails.
+      # An issue notifies by email, names which source and why, and persists as
+      # a to-do. Reuses one open issue so a week-long problem doesn't file seven.
+      - name: Open or update alert issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if ! grep -q '"alert": true' data/manifest.json; then
+            echo "No alert condition."
+            exit 0
+          fi
+
+          BODY=$(printf '%s\n\n%s\n\n%s\n' \
+            "The data pipeline flagged a problem on $(date -u '+%Y-%m-%d %H:%M UTC')." \
+            "$(cat data/alert-summary.md)" \
+            "[View the run]($RUN_URL)")
+
+          EXISTING=$(gh issue list --label data-alert --state open \
+                       --json number --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+            echo "Commented on issue #$EXISTING"
+          else
+            gh label create data-alert --color B60205 \
+              --description "Automated data pipeline alert" 2>/dev/null || true
+            gh issue create --title "Data pipeline alert" \
+              --label data-alert --body "$BODY"
+          fi
+
+      # Red run only for a suspect output, or a fetch past its grace period.
+      # A same-day upstream outage logs a warning instead, so the failure
+      # emails stay meaningful.
       - name: Report failures
+        if: always()
         run: |
           if grep -q '"alert": true' data/manifest.json; then
-            echo "::error::A source has been failing past the grace period — see data/manifest.json"
+            echo "::error::Data pipeline alert — details below"
+            cat data/alert-summary.md
             exit 1
           fi
           if grep -q '"status": "failed"' data/manifest.json; then
-            echo "::warning::One or more sources failed today (within grace period)."
+            echo "::warning::A source failed this run (within grace period)."
           fi
