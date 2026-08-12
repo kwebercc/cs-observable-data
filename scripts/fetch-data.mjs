@@ -4,6 +4,13 @@
  * passes. Sources with a `transform` also get a parsed CSV written alongside
  * the raw mirror. Records outcomes in data/manifest.json either way.
  *
+ * Two layers of checking, because they catch different failures:
+ *   - `sniff` inspects the RAW payload before it's mirrored. Catches error
+ *     pages, truncation, and swapped URLs.
+ *   - `expect` + auditCsv() inspect the DERIVED CSV — the thing notebooks
+ *     actually read. Catches a source quietly changing shape, which produces
+ *     rows full of empty columns while every fetch-side check still passes.
+ *
  * Always exits 0 — the workflow commits the manifest first, then checks it
  * and fails the run afterward, so a failure is still recorded in git.
  */
@@ -37,6 +44,63 @@ function toCsv(rows, fields) {
     fields.join(","),
     ...rows.map(r => fields.map(f => r[f]).join(","))
   ].join("\n") + "\n";
+}
+
+/**
+ * Inspects a generated CSV and returns a list of problems (empty = healthy).
+ *
+ * The column-fill check is the important one. When an upstream payload changes
+ * shape, the parser usually still produces rows — just with the values gone.
+ * That's how global_hottest_years.csv became 177 rows of "1850,1850,," while
+ * the fetch, the byte-size check and the sniff all reported success.
+ */
+function auditCsv(csv, expect = {}) {
+  const problems = [];
+  const lines = csv.trimEnd().split("\n");
+
+  if (lines.length < 2) return ["output has no data rows"];
+
+  const header = lines[0].split(",");
+  const rows = lines.slice(1).map(l => l.split(","));
+
+  if (expect.minRows && rows.length < expect.minRows) {
+    problems.push(`${rows.length} rows, expected at least ${expect.minRows}`);
+  }
+
+  // Columns named in `sparse` are allowed to be mostly empty (optional or
+  // uncertainty fields). Everything else must be populated in most rows.
+  const sparse = new Set(expect.sparse ?? []);
+  const floor = expect.minFilled ?? 0.5;
+
+  header.forEach((name, i) => {
+    if (sparse.has(name)) return;
+    const filled = rows.reduce(
+      (n, r) => n + (r[i] !== undefined && r[i].trim() !== "" ? 1 : 0), 0
+    );
+    const ratio = filled / rows.length;
+    if (ratio < floor) {
+      problems.push(`column "${name}" populated in only ${(ratio * 100).toFixed(0)}% of rows`);
+    }
+  });
+
+  // Freshness, for outputs carrying a date column. Catches a source that keeps
+  // returning HTTP 200 with frozen data — invisible to every other check.
+  if (expect.maxAgeDays && header.includes("date")) {
+    const di = header.indexOf("date");
+    const latest = rows.map(r => r[di]).filter(Boolean).sort().at(-1);
+    if (!latest) {
+      problems.push("no parseable date values");
+    } else {
+      const ageDays = (Date.now() - new Date(latest)) / 864e5;
+      if (ageDays > expect.maxAgeDays) {
+        problems.push(
+          `newest row is ${ageDays.toFixed(0)} days old (${latest}), limit ${expect.maxAgeDays}`
+        );
+      }
+    }
+  }
+
+  return problems;
 }
 
 // ---------------------------------------------------------------------------
@@ -115,24 +179,60 @@ function parseCo2Weekly(text) {
 // ---------------------------------------------------------------------------
 
 /**
- * CAG payloads are { description: {...}, data: { "<period>": {value, anomaly} } }.
- * Period keys are a 4-digit year, sometimes with a 2-digit month suffix, so we
- * take the year off the front and keep the raw key too.
+ * CAG has shipped two different shapes for these payloads:
+ *
+ *   flat:    data: { "1850": { value, anomaly } }
+ *   nested:  data: { "1850": { "185001": -0.43, ..., "185012": -0.15 } }
+ *
+ * It switched to the nested form without notice, which is what broke the
+ * derived CSVs. Handle both — the parser is only used for validation now, but
+ * a validator that only knows today's shape fails silently when it changes.
+ *
+ * Accepts a string or an already-parsed object so it can be reused in a
+ * notebook against the output of d3.json.
  */
-function parseCag(text) {
-  const json = JSON.parse(text);
-  if (!json.data || typeof json.data !== "object") {
+function parseCag(input) {
+  const json = typeof input === "string" ? JSON.parse(input) : input;
+  if (!json?.data || typeof json.data !== "object") {
     throw new Error("payload has no data object");
   }
-  return Object.entries(json.data)
-    .map(([period, v]) => ({
-      period,
-      year: Number(String(period).slice(0, 4)),
-      value: v?.value === undefined ? null : Number(v.value),
-      anomaly: v?.anomaly === undefined ? null : Number(v.anomaly)
-    }))
-    .filter(r => Number.isFinite(r.year))
-    .sort((a, b) => a.year - b.year);
+
+  const num = v => {
+    if (v === null || v === undefined || v === "") return null;
+    if (typeof v === "object") return num(v.value ?? v.anomaly ?? v.departure);
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const rows = [];
+
+  const visit = (key, val) => {
+    const k = String(key);
+
+    // A 6-digit key is a YYYYMM period — the leaf we want.
+    if (/^\d{6}$/.test(k)) {
+      rows.push({ year: +k.slice(0, 4), month: +k.slice(4, 6), value: num(val) });
+      return;
+    }
+
+    if (/^\d{4}$/.test(k)) {
+      if (val && typeof val === "object") {
+        const inner = Object.entries(val);
+        if (inner.some(([ik]) => /^\d{6}$/.test(ik))) {
+          inner.forEach(([ik, iv]) => visit(ik, iv));
+          return;
+        }
+      }
+      rows.push({ year: +k, month: null, value: num(val) });
+    }
+  };
+
+  Object.entries(json.data).forEach(([k, v]) => visit(k, v));
+
+  return rows
+    .filter(r => Number.isFinite(r.year) && r.value !== null)
+    .map(r => ({ ...r, date: `${r.year}-${pad(r.month ?? 1)}-01` }))
+    .sort((a, b) => a.year - b.year || (a.month ?? 0) - (b.month ?? 0));
 }
 
 const sniffCag = min => buf => {
@@ -143,15 +243,12 @@ const sniffCag = min => buf => {
   }
 };
 
-const transformCag = buf =>
-  toCsv(parseCag(buf.toString("utf8")), ["period", "year", "value", "anomaly"]);
-
 // ---------------------------------------------------------------------------
 // Climate Reanalyzer daily SST
 // ---------------------------------------------------------------------------
 
 // Payload is an array of series: [{ name: "2026", data: [366 daily values] }, ...]
-// with extra entries for the climatological mean and sigma bands.
+// with extra entries for the climatological mean, sigma bands, and Preliminary.
 const sniffSst = buf => {
   try {
     const json = JSON.parse(buf.toString("utf8"));
@@ -288,7 +385,7 @@ function parseSeaIce(text) {
     return [{
       year, month, day, extent,
       missing: Number.isFinite(missing) ? missing : "",
-      date: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+      date: `${year}-${pad(month)}-${pad(day)}`
     }];
   }).sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -324,7 +421,10 @@ const sniffWeekly = min =>
 // Optional fields:
 //   derived      — path for a parsed CSV written alongside the raw mirror
 //   transform    — buf => string, produces that CSV
-//   minAgeHours  — skip the fetch if we checked more recently than this
+//   expect       — audit rules for that CSV: { minRows, maxAgeDays, sparse }
+//   minAgeHours  — skip the FETCH if we checked more recently than this
+//                  (the audit still runs every time; it reads from disk)
+//   timeoutMs    — per-source fetch timeout override
 //   variants     — expand one entry into many (see expandSources below)
 // ---------------------------------------------------------------------------
 
@@ -356,7 +456,8 @@ const SOURCES = [
     transform: buf => toCsv(
       parseGmlMonthly(buf.toString("utf8"), GML_CO2_MLO),
       [...GML_CO2_MLO, "date"]
-    )
+    ),
+    expect: { minRows: 780, maxAgeDays: 70 }      // ~1-2 month publication lag
   },
   {
     name: "ch4",
@@ -368,7 +469,8 @@ const SOURCES = [
     transform: buf => toCsv(
       parseGmlMonthly(buf.toString("utf8"), GML_GLOBAL),
       [...GML_GLOBAL, "date"]
-    )
+    ),
+    expect: { minRows: 490, maxAgeDays: 170 }     // ~4 month lag
   },
   {
     name: "n2o",
@@ -380,7 +482,8 @@ const SOURCES = [
     transform: buf => toCsv(
       parseGmlMonthly(buf.toString("utf8"), GML_GLOBAL),
       [...GML_GLOBAL, "date"]
-    )
+    ),
+    expect: { minRows: 275, maxAgeDays: 170 }     // ~4 month lag
   },
   {
     name: "co2_weekly",
@@ -392,33 +495,29 @@ const SOURCES = [
     transform: buf => toCsv(
       parseCo2Weekly(buf.toString("utf8")),
       [...GML_CO2_WEEKLY, "date", "imputed"]
-    )
+    ),
+    expect: { minRows: 2600, maxAgeDays: 21 }
   },
 
   // --- NCEI Climate at a Glance -------------------------------------------
-  // CAG updates monthly, so there's no reason to poll it every day.
+  // Raw JSON only: the derived CSVs are gone since the notebooks parse the
+  // JSON directly now. The sniff still runs, so a shape change is caught.
   {
     name: "global_hottest_years",
     url: `${CAG_BASE}/global/haywood/globe/tavg/land_ocean/12/data.json`,
     file: "data/global_hottest_years.json",
-    derived: "data/global_hottest_years.csv",
     minBytes: 1000,
     minAgeHours: 20,
-    sniff: sniffCag(100),                         // record starts 1850
-    transform: transformCag
+    sniff: sniffCag(2000)                         // 1850-present, monthly periods
   },
   {
     name: "us_hottest_years",
     url: `${CAG_BASE}/national/haywood/110/tavg/12/data.json`,
     file: "data/us_hottest_years.json",
-    derived: "data/us_hottest_years.csv",
     minBytes: 1000,
     minAgeHours: 20,
-    sniff: sniffCag(100),                         // record starts 1895
-    transform: transformCag
-  }
-
-  ,
+    sniff: sniffCag(1500)                         // 1895-present, monthly periods
+  },
   {
     name: "gmsl",
     resolveUrl: resolveGmslUrl,          // release-versioned; discovered each run
@@ -428,7 +527,8 @@ const SOURCES = [
     minAgeHours: 20,                     // CU updates roughly every two months
     sniff: buf => parseGmsl(buf.toString("utf8")).length >= 500,
     transform: buf => toCsv(parseGmsl(buf.toString("utf8")),
-                            ["decimal_year", "gmsl_mm", "date"])
+                            ["decimal_year", "gmsl_mm", "date"]),
+    expect: { minRows: 1000, maxAgeDays: 400 }    // several months to a year lag
   },
   {
     name: "ohc",
@@ -438,7 +538,8 @@ const SOURCES = [
     minBytes: 1000,
     minAgeHours: 20,                     // JMA revises roughly annually
     sniff: buf => parseOhc(buf.toString("utf8")).length >= 50,
-    transform: buf => toCsv(parseOhc(buf.toString("utf8")), OHC_COLUMNS)
+    transform: buf => toCsv(parseOhc(buf.toString("utf8")), OHC_COLUMNS),
+    expect: { minRows: 65 }              // annual, no date column to age-check
   },
   {
     name: "seaice_arctic",
@@ -448,7 +549,8 @@ const SOURCES = [
     derived: "data/seaice_arctic.csv",
     minBytes: 200_000,
     sniff: buf => parseSeaIce(buf.toString("utf8")).length >= 10_000,
-    transform: buf => toCsv(parseSeaIce(buf.toString("utf8")), SEAICE_COLUMNS)
+    transform: buf => toCsv(parseSeaIce(buf.toString("utf8")), SEAICE_COLUMNS),
+    expect: { minRows: 15_000, maxAgeDays: 7, sparse: ["missing"] }
   },
 
   // --- Climate Reanalyzer daily SST ---------------------------------------
@@ -463,27 +565,6 @@ const SOURCES = [
     throttleMs: 500,
     sniff: sniffSst
   }
-
-  // --- Example of the variants pattern, for dynamic CAG selections ---------
-  // Uncomment and fill in the codes you actually need. Each variant becomes
-  // its own mirrored file, named "<source>_<id>".
-  //
-  // {
-  //   name: "cag_state_tavg",
-  //   variants: [
-  //     { id: "ct", code: "6" },
-  //     { id: "ny", code: "30" },
-  //     { id: "ca", code: "4" }
-  //   ],
-  //   url: v => `${CAG_BASE}/statewide/haywood/${v.code}/tavg/12/data.json`,
-  //   file: v => `data/cag/state-${v.id}-tavg.json`,
-  //   derived: v => `data/cag/state-${v.id}-tavg.csv`,
-  //   minBytes: 1000,
-  //   minAgeHours: 20,
-  //   throttleMs: 500,
-  //   sniff: sniffCag(100),
-  //   transform: transformCag
-  // }
 ];
 
 /** Turns any entry carrying `variants` into one concrete source per variant. */
@@ -504,8 +585,9 @@ function expandSources(sources) {
 // ---------------------------------------------------------------------------
 
 const MANIFEST = "data/manifest.json";
-const MAX_SHRINK = 0.5;   // reject a file that's less than half its old size
-const FAIL_AFTER_DAYS = 3; // days a source must be failing before the run goes red
+const SUMMARY = "data/alert-summary.md";
+const MAX_SHRINK = 0.5;    // reject a file that's less than half its old size
+const FAIL_AFTER_DAYS = 3; // days a FETCH must be failing before the run goes red
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -518,15 +600,21 @@ const manifest = existsSync(MANIFEST)
   : {};
 
 const now = new Date().toISOString();
+const sources = expandSources(SOURCES);
 
-for (const src of expandSources(SOURCES)) {
+// ---------------------------------------------------------------------------
+// Pass 1 — fetch, validate, mirror, transform
+// ---------------------------------------------------------------------------
+
+for (const src of sources) {
   const entry = (manifest[src.name] ??= {});
 
-  // Throttle sources that update slower than we run.
+  // Throttle sources that update slower than we run. Only the network fetch is
+  // skipped — pass 2 below still audits the derived output every run.
   if (src.minAgeHours && entry.last_checked && entry.status === "ok") {
     const ageHours = (Date.now() - new Date(entry.last_checked)) / 3.6e6;
     if (ageHours < src.minAgeHours) {
-      console.log(`${src.name}: skipped (checked ${ageHours.toFixed(1)}h ago)`);
+      console.log(`${src.name}: fetch skipped (checked ${ageHours.toFixed(1)}h ago)`);
       continue;
     }
   }
@@ -546,7 +634,7 @@ for (const src of expandSources(SOURCES)) {
 
     const buf = Buffer.from(await res.arrayBuffer());
 
-    // --- Validation gauntlet ---
+    // --- Validation gauntlet (raw payload) ---
     if (buf.length < src.minBytes) {
       throw new Error(`too small: ${buf.length} bytes`);
     }
@@ -577,15 +665,29 @@ for (const src of expandSources(SOURCES)) {
     delete entry.failing_since;
 
     // Derived output gets its own error boundary: a bad transform shouldn't
-    // invalidate a mirror that fetched and validated fine.
-    if (src.transform && (changed || !existsSync(src.derived))) {
+    // invalidate a mirror that fetched and validated fine. And a transform that
+    // "succeeds" while producing empty columns is the failure that actually
+    // bites, so audit BEFORE overwriting the last known-good CSV.
+    if (src.transform && src.derived && (changed || !existsSync(src.derived))) {
       try {
         const csv = src.transform(buf);
-        await writeFile(src.derived, csv);
-        entry.rows = csv.trimEnd().split("\n").length - 1;
+        const problems = auditCsv(csv, src.expect ?? {});
+
+        if (problems.length) {
+          entry.audit = problems;
+          entry.status = "suspect";
+          entry.suspect_since ??= now;
+          console.error(`${src.name}: OUTPUT REJECTED — ${problems.join("; ")}`);
+        } else {
+          await mkdir(path.dirname(src.derived), { recursive: true });
+          await writeFile(src.derived, csv);
+          entry.rows = csv.trimEnd().split("\n").length - 1;
+        }
         delete entry.derived_error;
       } catch (err) {
         entry.derived_error = String(err.message);
+        entry.status = "suspect";
+        entry.suspect_since ??= now;
         console.error(`${src.name}: transform failed — ${err.message}`);
       }
     }
@@ -611,34 +713,86 @@ for (const src of expandSources(SOURCES)) {
   }
 }
 
-// Only escalate to a red run once a source has been failing for a while.
-// A one-day upstream outage is normal; a three-day one probably needs a look.
-const alerting = Object.entries(manifest)
-  .filter(([name, e]) =>
-    !name.startsWith("_") &&
+// ---------------------------------------------------------------------------
+// Pass 2 — audit every derived output on disk
+//
+// Reads files rather than the network, so it runs for sources the throttle
+// skipped and sources whose fetch failed. That's what keeps detection at the
+// cron interval rather than the throttle interval, at zero request cost — and
+// it's the only check that notices a file quietly going stale.
+// ---------------------------------------------------------------------------
+
+for (const src of sources) {
+  if (!src.derived || !src.expect) continue;
+
+  const entry = (manifest[src.name] ??= {});
+
+  if (!existsSync(src.derived)) {
+    entry.audit = ["derived output is missing"];
+    if (entry.status !== "failed") entry.status = "suspect";
+    entry.suspect_since ??= now;
+    console.error(`${src.name}: OUTPUT SUSPECT — missing`);
+    continue;
+  }
+
+  const problems = auditCsv(await readFile(src.derived, "utf8"), src.expect);
+
+  if (problems.length) {
+    entry.audit = problems;
+    if (entry.status !== "failed") entry.status = "suspect";
+    entry.suspect_since ??= now;
+    console.error(`${src.name}: OUTPUT SUSPECT — ${problems.join("; ")}`);
+  } else {
+    delete entry.audit;
+    delete entry.suspect_since;
+    if (entry.status === "suspect") entry.status = "ok";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Alerting
+//
+// Two kinds of problem, deliberately treated differently:
+//   - a failed FETCH is often a transient upstream outage, so it gets a grace
+//     period before turning the run red;
+//   - a SUSPECT OUTPUT means the data changed shape or went stale. That never
+//     self-heals, so it alerts on the first occurrence.
+// ---------------------------------------------------------------------------
+
+const named = Object.entries(manifest).filter(([name]) => !name.startsWith("_"));
+
+const failing = named.filter(([, e]) => e.status === "failed").map(([n]) => n);
+const suspect = named.filter(([, e]) => e.status === "suspect").map(([n]) => n);
+
+const alertingFetch = named
+  .filter(([, e]) =>
     e.status === "failed" &&
     e.failing_since &&
     (Date.now() - new Date(e.failing_since)) / 864e5 >= FAIL_AFTER_DAYS
   )
-  .map(([name]) => name);
+  .map(([n]) => n);
 
-const failingNow = Object.entries(manifest)
-  .filter(([name, e]) => !name.startsWith("_") && e.status === "failed")
-  .map(([name]) => name);
+const alerting = [...new Set([...alertingFetch, ...suspect])];
 
 manifest._meta = {
   generated: now,
   fail_after_days: FAIL_AFTER_DAYS,
-  failing: failingNow,
+  failing,
+  suspect,
   alerting,
   alert: alerting.length > 0
 };
 
-if (failingNow.length) {
-  console.log(`Currently failing: ${failingNow.join(", ")}`);
-}
-if (alerting.length) {
-  console.log(`Past the ${FAIL_AFTER_DAYS}-day grace period: ${alerting.join(", ")}`);
-}
+if (failing.length) console.log(`Fetch failing: ${failing.join(", ")}`);
+if (suspect.length) console.log(`Output suspect: ${suspect.join(", ")}`);
+if (alerting.length) console.log(`ALERTING: ${alerting.join(", ")}`);
 
 await writeFile(MANIFEST, JSON.stringify(manifest, null, 2) + "\n");
+
+// Human-readable summary for the workflow to drop into an issue body.
+const summaryLines = alerting.map(name => {
+  const e = manifest[name];
+  const detail = e.audit?.join("; ") ?? e.derived_error ?? e.error ?? "unknown";
+  return `- **${name}** (${e.status}): ${detail}`;
+});
+await writeFile(SUMMARY, summaryLines.length ? summaryLines.join("\n") + "\n" : "");
