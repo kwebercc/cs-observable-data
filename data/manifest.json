@@ -1,15 +1,15 @@
 {
   "oni": {
     "url": "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt",
-    "last_checked": "2026-08-29T14:03:28.772Z",
+    "last_checked": "2026-08-29T19:21:34.536Z",
     "status": "ok",
     "last_changed": "2026-08-06T11:11:35.829Z",
     "bytes": 22975,
-    "seconds": 0.3
+    "seconds": 0.2
   },
   "roni": {
     "url": "https://www.cpc.ncep.noaa.gov/data/indices/RONI.ascii.txt",
-    "last_checked": "2026-08-29T14:03:28.772Z",
+    "last_checked": "2026-08-29T19:21:34.536Z",
     "status": "ok",
     "last_changed": "2026-08-04T11:14:14.318Z",
     "bytes": 14704,
@@ -17,34 +17,34 @@
   },
   "co2": {
     "url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.txt",
-    "last_checked": "2026-08-29T14:03:28.772Z",
+    "last_checked": "2026-08-29T19:21:34.536Z",
     "last_changed": "2026-08-06T11:11:35.829Z",
     "bytes": 59538,
     "rows": 821,
     "status": "ok",
-    "seconds": 0.2
+    "seconds": 0.3
   },
   "ch4": {
     "url": "https://gml.noaa.gov/webdata/ccgg/trends/ch4/ch4_mm_gl.txt",
-    "last_checked": "2026-08-29T14:03:28.772Z",
+    "last_checked": "2026-08-29T19:21:34.536Z",
     "last_changed": "2026-08-06T11:11:35.829Z",
     "bytes": 45904,
     "rows": 514,
     "status": "ok",
-    "seconds": 0
+    "seconds": 0.1
   },
   "n2o": {
     "url": "https://gml.noaa.gov/webdata/ccgg/trends/n2o/n2o_mm_gl.txt",
-    "last_checked": "2026-08-29T14:03:28.772Z",
+    "last_checked": "2026-08-29T19:21:34.536Z",
     "last_changed": "2026-08-06T11:11:35.829Z",
     "bytes": 28054,
     "rows": 304,
     "status": "ok",
-    "seconds": 0.1
+    "seconds": 0.2
   },
   "co2_weekly": {
     "url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_weekly_mlo.txt",
-    "last_checked": "2026-08-29T14:03:28.772Z",
+    "last_checked": "2026-08-29T19:21:34.536Z",
     "last_changed": "2026-08-29T14:03:28.772Z",
     "bytes": 209044,
     "rows": 2728,
@@ -53,16 +53,16 @@
   },
   "global_hottest_years": {
     "url": "https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance/global/haywood/globe/tavg/land_ocean/12/data.json",
-    "last_checked": "2026-08-28T20:27:54.592Z",
+    "last_checked": "2026-08-29T19:21:34.536Z",
     "status": "ok",
     "last_changed": "2026-08-12T09:52:05.562Z",
     "bytes": 32359,
     "rows": 177,
-    "seconds": 0.3
+    "seconds": 0.2
   },
   "us_hottest_years": {
     "url": "https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance/national/haywood/110/tavg/12/data.json",
-    "last_checked": "2026-08-28T20:27:54.592Z",
+    "last_checked": "2026-08-29T19:21:34.536Z",
     "status": "ok",
     "last_changed": "2026-08-11T09:54:07.758Z",
     "bytes": 24801,
@@ -71,62 +71,62 @@
   },
   "sst_world": {
     "url": "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_world2_sst_day.json",
-    "last_checked": "2026-08-29T14:03:28.772Z",
-    "last_changed": "2026-08-28T20:27:54.592Z",
-    "bytes": 126809,
+    "last_checked": "2026-08-29T19:21:34.536Z",
+    "last_changed": "2026-08-29T19:21:34.536Z",
+    "bytes": 126811,
     "status": "ok",
-    "seconds": 1.4
+    "seconds": 0.8
   },
   "sst_natlan": {
     "url": "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_natlan_sst_day.json",
-    "last_checked": "2026-08-29T14:03:28.772Z",
-    "last_changed": "2026-08-28T20:27:54.592Z",
-    "bytes": 126809,
+    "last_checked": "2026-08-29T19:21:34.536Z",
+    "last_changed": "2026-08-29T19:21:34.536Z",
+    "bytes": 126811,
     "status": "ok",
     "seconds": 0.6
   },
   "sst_natlsp": {
     "url": "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_natlsp_sst_day.json",
-    "last_checked": "2026-08-29T14:03:28.772Z",
-    "last_changed": "2026-08-28T20:27:54.592Z",
-    "bytes": 119437,
+    "last_checked": "2026-08-29T19:21:34.536Z",
+    "last_changed": "2026-08-29T19:21:34.536Z",
+    "bytes": 119439,
     "status": "ok",
     "seconds": 0.6
   },
   "sst_atlhmdr": {
     "url": "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_atlhmdr_sst_day.json",
-    "last_checked": "2026-08-29T14:03:28.772Z",
-    "last_changed": "2026-08-28T20:27:54.592Z",
-    "bytes": 126809,
+    "last_checked": "2026-08-29T19:21:34.536Z",
+    "last_changed": "2026-08-29T19:21:34.536Z",
+    "bytes": 126811,
     "status": "ok",
     "seconds": 0.6
   },
   "sst_gom": {
     "url": "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_gom_sst_day.json",
-    "last_checked": "2026-08-29T14:03:28.772Z",
-    "last_changed": "2026-08-28T20:27:54.592Z",
-    "bytes": 117266,
+    "last_checked": "2026-08-29T19:21:34.536Z",
+    "last_changed": "2026-08-29T19:21:34.536Z",
+    "bytes": 117268,
     "status": "ok",
     "seconds": 0.6
   },
   "sst_gomex": {
     "url": "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_gomex_sst_day.json",
-    "last_checked": "2026-08-29T14:03:28.772Z",
-    "last_changed": "2026-08-28T20:27:54.592Z",
-    "bytes": 126809,
+    "last_checked": "2026-08-29T19:21:34.536Z",
+    "last_changed": "2026-08-29T19:21:34.536Z",
+    "bytes": 126811,
     "status": "ok",
     "seconds": 0.6
   },
   "sst_nino34": {
     "url": "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_nino3.4_sst_day.json",
-    "last_checked": "2026-08-29T14:03:28.772Z",
-    "last_changed": "2026-08-28T20:27:54.592Z",
-    "bytes": 126809,
+    "last_checked": "2026-08-29T19:21:34.536Z",
+    "last_changed": "2026-08-29T19:21:34.536Z",
+    "bytes": 126811,
     "status": "ok",
     "seconds": 0.6
   },
   "_meta": {
-    "generated": "2026-08-29T14:03:28.772Z",
+    "generated": "2026-08-29T19:21:34.536Z",
     "fail_after_days": 3,
     "failing": [],
     "suspect": [],
@@ -134,31 +134,31 @@
     "alert": false
   },
   "gmsl": {
-    "last_checked": "2026-08-28T20:27:54.592Z",
+    "last_checked": "2026-08-29T19:21:34.536Z",
     "release": "2026_rel2",
     "url": "https://sealevel.colorado.edu/files/2026_rel2/gmsl_2026rel2_seasons_rmvd.txt",
     "last_changed": "2026-08-22T16:32:55.537Z",
     "bytes": 36849,
     "status": "ok",
     "rows": 1203,
-    "seconds": 0.3
+    "seconds": 0.5
   },
   "ohc": {
-    "last_checked": "2026-08-28T20:27:54.592Z",
+    "last_checked": "2026-08-29T19:21:34.536Z",
     "url": "https://www.data.jma.go.jp/kaiyou/data/english/ohc/ohc_global_1955.txt",
     "last_changed": "2026-08-06T21:48:28.982Z",
     "bytes": 4147,
     "status": "ok",
     "rows": 71,
-    "seconds": 0.3
+    "seconds": 0.2
   },
   "seaice_arctic": {
-    "last_checked": "2026-08-29T14:03:28.772Z",
+    "last_checked": "2026-08-29T19:21:34.536Z",
     "url": "https://noaadata.apps.nsidc.org/NOAA/G02135/north/daily/data/N_seaice_extent_daily_v4.0.csv",
     "last_changed": "2026-08-29T14:03:28.772Z",
     "bytes": 1892115,
     "status": "ok",
     "rows": 15823,
-    "seconds": 0.9
+    "seconds": 1
   }
 }
