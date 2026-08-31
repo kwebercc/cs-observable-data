@@ -1,7 +1,7 @@
 {
   "usdm": {
     "url": "https://droughtmonitor.unl.edu/data/shapefiles_m/USDM_current_M.zip",
-    "last_checked": "2026-08-30T18:08:11.586Z",
+    "last_checked": "2026-08-31T20:15:06.020Z",
     "layer": "USDM_20260825.shp",
     "valid_date": "2026-08-25",
     "bbox": [
@@ -20,7 +20,7 @@
   },
   "mdo": {
     "url": "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/mdo_polygons_latest.zip",
-    "last_checked": "2026-08-30T18:08:11.586Z",
+    "last_checked": "2026-08-31T20:15:06.020Z",
     "layer": "DO_Merge_Clip.shp",
     "bbox": [
       -179.15,
@@ -29,26 +29,26 @@
       71.39
     ],
     "status": "ok",
-    "last_changed": "2026-08-03T05:43:01.633Z",
+    "last_changed": "2026-08-31T20:15:06.020Z",
     "features": 5,
-    "output_bytes": 889536,
-    "source_sha256": "612376296bc86d48df592479ff27f2f45154de04b4ed30e4b34c9a8f41a25432",
-    "cache_key": "618791df17f25033452a362934f3d201145c2deb80a667440737fe12575b9edf",
+    "output_bytes": 892484,
+    "source_sha256": "a02b8fcbab1111ed81579633c984638d96e152113f571f3587d57de6d99a3c96",
+    "cache_key": "82686253699ec5290f988dbb4a6d97776b03cdd47a5001a5e8b2ce956d33d6ca",
     "properties": {
       "Outlook": "No_Drought",
       "FID_persis": 0,
       "FID_improv": 0,
       "FID_Remove": 0,
       "FID_dev": 0,
-      "Fcst_Date": "07/31/2026",
-      "Target": "Aug 2026"
+      "Fcst_Date": "08/31/2026",
+      "Target": "Sep 2026"
     },
-    "valid_raw": "Aug 2026",
-    "valid_label": "August 2026"
+    "valid_raw": "Sep 2026",
+    "valid_label": "September 2026"
   },
   "sdo": {
     "url": "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/sdo_polygons_latest.zip",
-    "last_checked": "2026-08-30T18:08:11.586Z",
+    "last_checked": "2026-08-31T20:15:06.020Z",
     "layer": "DO_Merge_Clip.shp",
     "bbox": [
       -179.15,
@@ -75,7 +75,7 @@
     "valid_label": "September-November 2026"
   },
   "_meta": {
-    "generated": "2026-08-30T18:08:11.586Z",
+    "generated": "2026-08-31T20:15:06.020Z",
     "fail_after_days": 3,
     "failing": [],
     "alerting": [],
