@@ -1,0 +1,84 @@
+# .github/workflows/probe-update-times.yml
+#
+# Temporary instrument: polls the upstream URLs hourly for a week and logs when
+# they actually change, so the cron in update-data.yml can be set from evidence
+# instead of guesswork. Self-disables after 7 days.
+
+name: Probe update times
+
+on:
+  schedule:
+    # :07 rather than :00 — GitHub's scheduler is most congested on the hour,
+    # and delayed runs blur the timing you're trying to measure.
+    - cron: "7 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write # so the last run can disable this workflow
+
+# Don't cancel: a superseded run is a lost observation.
+concurrency:
+  group: probe-update-times
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # Stop after a week, measured from the first row in the log.
+      - id: window
+        name: Check the probe window
+        run: |
+          CSV=data/probe/update-times.csv
+          if [ ! -f "$CSV" ]; then
+            echo "expired=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          FIRST=$(sed -n '2p' "$CSV" | cut -d, -f1)
+          START=$(date -u -d "$FIRST" +%s)
+          NOW=$(date -u +%s)
+          if [ $(( NOW - START )) -ge $(( 7 * 24 * 3600 )) ]; then
+            echo "expired=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Seven days of probing collected; shutting down."
+          else
+            echo "expired=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Probe
+        if: steps.window.outputs.expired == 'false'
+        run: node scripts/probe-update-times.mjs
+
+      - name: Commit
+        if: steps.window.outputs.expired == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/probe/
+          if git diff --staged --quiet; then
+            echo "Nothing to commit."
+            exit 0
+          fi
+          git commit -m "probe: $(date -u +%Y-%m-%dT%H:%MZ)"
+          # update-data.yml pushes to the same branch; rebase past it.
+          for attempt in 1 2 3; do
+            if git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push; then
+              echo "Pushed on attempt ${attempt}."
+              exit 0
+            fi
+            echo "Push attempt ${attempt} failed; retrying."
+            sleep 5
+          done
+          echo "::error::Could not push after 3 attempts."
+          exit 1
+
+      - name: Disable this workflow
+        if: steps.window.outputs.expired == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow disable probe-update-times.yml
