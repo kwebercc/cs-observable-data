@@ -1,7 +1,7 @@
 {
   "oni": {
     "url": "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt",
-    "last_checked": "2026-09-24T13:52:38.239Z",
+    "last_checked": "2026-09-24T16:56:33.121Z",
     "status": "ok",
     "last_changed": "2026-09-03T19:14:32.914Z",
     "bytes": 23000,
@@ -9,7 +9,7 @@
   },
   "roni": {
     "url": "https://www.cpc.ncep.noaa.gov/data/indices/RONI.ascii.txt",
-    "last_checked": "2026-09-24T13:52:38.239Z",
+    "last_checked": "2026-09-24T16:56:33.121Z",
     "status": "ok",
     "last_changed": "2026-09-03T19:14:32.914Z",
     "bytes": 14720,
@@ -17,116 +17,116 @@
   },
   "co2": {
     "url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.txt",
-    "last_checked": "2026-09-24T13:52:38.239Z",
+    "last_checked": "2026-09-24T16:56:33.121Z",
     "last_changed": "2026-09-08T23:02:15.975Z",
     "bytes": 59608,
     "rows": 822,
     "status": "ok",
-    "seconds": 0.1
+    "seconds": 0.2
   },
   "ch4": {
     "url": "https://gml.noaa.gov/webdata/ccgg/trends/ch4/ch4_mm_gl.txt",
-    "last_checked": "2026-09-24T13:52:38.239Z",
+    "last_checked": "2026-09-24T16:56:33.121Z",
     "last_changed": "2026-09-08T23:02:15.975Z",
     "bytes": 45989,
     "rows": 515,
     "status": "ok",
-    "seconds": 0
+    "seconds": 0.1
   },
   "n2o": {
     "url": "https://gml.noaa.gov/webdata/ccgg/trends/n2o/n2o_mm_gl.txt",
-    "last_checked": "2026-09-24T13:52:38.239Z",
+    "last_checked": "2026-09-24T16:56:33.121Z",
     "last_changed": "2026-09-08T23:02:15.975Z",
     "bytes": 28139,
     "rows": 305,
     "status": "ok",
-    "seconds": 0
+    "seconds": 0.1
   },
   "co2_weekly": {
     "url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_weekly_mlo.txt",
-    "last_checked": "2026-09-24T13:52:38.239Z",
+    "last_checked": "2026-09-24T16:56:33.121Z",
     "last_changed": "2026-09-24T13:52:38.239Z",
     "bytes": 209272,
     "rows": 2731,
     "status": "ok",
-    "seconds": 0.1
+    "seconds": 0.2
   },
   "global_hottest_years": {
     "url": "https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance/global/haywood/globe/tavg/land_ocean/12/data.json",
-    "last_checked": "2026-09-23T19:36:58.929Z",
+    "last_checked": "2026-09-24T16:56:33.121Z",
     "status": "ok",
     "last_changed": "2026-09-11T12:59:48.554Z",
     "bytes": 32365,
     "rows": 177,
-    "seconds": 4.5
+    "seconds": 0.4
   },
   "us_hottest_years": {
     "url": "https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance/national/haywood/110/tavg/12/data.json",
-    "last_checked": "2026-09-23T19:36:58.929Z",
+    "last_checked": "2026-09-24T16:56:33.121Z",
     "status": "ok",
     "last_changed": "2026-09-09T19:12:48.972Z",
     "bytes": 24816,
     "rows": 132,
-    "seconds": 8.7
+    "seconds": 0.1
   },
   "sst_world": {
     "url": "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_world2_sst_day.json",
-    "last_checked": "2026-09-24T13:52:38.239Z",
-    "last_changed": "2026-09-23T19:36:58.929Z",
-    "bytes": 126863,
+    "last_checked": "2026-09-24T16:56:33.121Z",
+    "last_changed": "2026-09-24T16:56:33.121Z",
+    "bytes": 126865,
     "status": "ok",
-    "seconds": 2.1
+    "seconds": 1.1
   },
   "sst_natlan": {
     "url": "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_natlan_sst_day.json",
-    "last_checked": "2026-09-24T13:52:38.239Z",
-    "last_changed": "2026-09-23T19:36:58.929Z",
-    "bytes": 126863,
+    "last_checked": "2026-09-24T16:56:33.121Z",
+    "last_changed": "2026-09-24T16:56:33.121Z",
+    "bytes": 126865,
     "status": "ok",
-    "seconds": 0.7
+    "seconds": 0.8
   },
   "sst_natlsp": {
     "url": "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_natlsp_sst_day.json",
-    "last_checked": "2026-09-24T13:52:38.239Z",
-    "last_changed": "2026-09-23T19:36:58.929Z",
-    "bytes": 119490,
+    "last_checked": "2026-09-24T16:56:33.121Z",
+    "last_changed": "2026-09-24T16:56:33.121Z",
+    "bytes": 119492,
     "status": "ok",
-    "seconds": 0.7
+    "seconds": 0.8
   },
   "sst_atlhmdr": {
     "url": "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_atlhmdr_sst_day.json",
-    "last_checked": "2026-09-24T13:52:38.239Z",
-    "last_changed": "2026-09-23T19:36:58.929Z",
-    "bytes": 126863,
+    "last_checked": "2026-09-24T16:56:33.121Z",
+    "last_changed": "2026-09-24T16:56:33.121Z",
+    "bytes": 126865,
     "status": "ok",
     "seconds": 0.7
   },
   "sst_gom": {
     "url": "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_gom_sst_day.json",
-    "last_checked": "2026-09-24T13:52:38.239Z",
-    "last_changed": "2026-09-23T19:36:58.929Z",
-    "bytes": 117319,
+    "last_checked": "2026-09-24T16:56:33.121Z",
+    "last_changed": "2026-09-24T16:56:33.121Z",
+    "bytes": 117321,
     "status": "ok",
-    "seconds": 0.6
+    "seconds": 0.8
   },
   "sst_gomex": {
     "url": "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_gomex_sst_day.json",
-    "last_checked": "2026-09-24T13:52:38.239Z",
-    "last_changed": "2026-09-23T19:36:58.929Z",
-    "bytes": 126863,
+    "last_checked": "2026-09-24T16:56:33.121Z",
+    "last_changed": "2026-09-24T16:56:33.121Z",
+    "bytes": 126865,
     "status": "ok",
     "seconds": 0.7
   },
   "sst_nino34": {
     "url": "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_nino3.4_sst_day.json",
-    "last_checked": "2026-09-24T13:52:38.239Z",
-    "last_changed": "2026-09-23T19:36:58.929Z",
-    "bytes": 126863,
+    "last_checked": "2026-09-24T16:56:33.121Z",
+    "last_changed": "2026-09-24T16:56:33.121Z",
+    "bytes": 126865,
     "status": "ok",
     "seconds": 0.7
   },
   "_meta": {
-    "generated": "2026-09-24T13:52:38.239Z",
+    "generated": "2026-09-24T16:56:33.121Z",
     "fail_after_days": 3,
     "failing": [],
     "suspect": [],
@@ -153,12 +153,12 @@
     "seconds": 0.4
   },
   "seaice_arctic": {
-    "last_checked": "2026-09-24T13:52:38.239Z",
+    "last_checked": "2026-09-24T16:56:33.121Z",
     "url": "https://noaadata.apps.nsidc.org/NOAA/G02135/north/daily/data/N_seaice_extent_daily_v4.0.csv",
     "last_changed": "2026-09-24T13:52:38.239Z",
     "bytes": 1899347,
     "status": "ok",
     "rows": 15849,
-    "seconds": 1.5
+    "seconds": 0.8
   }
 }
