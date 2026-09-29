@@ -79,6 +79,12 @@ const US_DD_SLICES = DD_INCLUDE_ALL_PERIODS
   ? [...US_SLICES, ...US_ALL_SLICES]
   : US_SLICES;
 
+// Meteorological seasons as 3-month periods, keyed by the month they END in:
+// DJF (winter) = 3/2, MAM (spring) = 3/5, JJA (summer) = 3/8, SON (fall) = 3/11.
+const SEASON_END_MONTHS = [2, 5, 8, 11];
+const US_SEASONAL_SLICES = SEASON_END_MONTHS.map(m => ({ months: 3, end: m }));
+
+const US_TEMP_SLICES = [...US_TEMP_PCP_SLICES, ...US_SEASONAL_SLICES];
 // endMonth = 0 is a special case on the global endpoint: instead of one month
 // sampled across years, it returns EVERY period of the given length as a
 // continuous series (e.g. 1/0 is every monthly anomaly since 1850).
@@ -118,8 +124,8 @@ const FAMILIES = [
     name: "us_temperature",
     startYear: 1900,
     probe: y => `${BASE}/national/time-series/110/tavg/1/1/1900-${y}/data.json`,
-    combos: y => ["tmin", "tavg", "tmax"].flatMap(variable =>
-      US_TEMP_PCP_SLICES.flatMap(s => [
+      combos: y => ["tmin", "tavg", "tmax"].flatMap(variable =>
+      US_TEMP_SLICES.flatMap(s => [
         // National (CONUS) uses code 110 on the /national/ endpoint.
         {
           file: `${OUT_DIR}/us-temp/110_${variable}_${s.months}_${s.end}.json`,
@@ -136,7 +142,7 @@ const FAMILIES = [
     name: "us_precipitation",
     startYear: 1900,
     probe: y => `${BASE}/national/time-series/110/pcp/1/1/1900-${y}/data.json`,
-    combos: y => US_TEMP_PCP_SLICES.flatMap(s => [
+    combos: y => US_TEMP_SLICES.flatMap(s => [
       {
         file: `${OUT_DIR}/us-pcp/110_${s.months}_${s.end}.json`,
         url: `${BASE}/national/time-series/110/pcp/${s.months}/${s.end}/1900-${y}/data.json`
@@ -152,7 +158,7 @@ const FAMILIES = [
     startYear: 1895,
     probe: y => `${BASE}/national/time-series/110/cdd/1/1/1895-${y}/data.json`,
     combos: y => ["cdd", "hdd"].flatMap(param =>
-      US_DD_SLICES.flatMap(s => [
+      US_TEMP_SLICES.flatMap(s => [
         {
           file: `${OUT_DIR}/us-dd/110_${param}_${s.months}_${s.end}.json`,
           url: `${BASE}/national/time-series/110/${param}/${s.months}/${s.end}/1895-${y}/data.json`
