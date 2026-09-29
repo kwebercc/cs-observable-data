@@ -158,7 +158,7 @@ const FAMILIES = [
     startYear: 1895,
     probe: y => `${BASE}/national/time-series/110/cdd/1/1/1895-${y}/data.json`,
     combos: y => ["cdd", "hdd"].flatMap(param =>
-      US_TEMP_SLICES.flatMap(s => [
+      US_SEASONAL_SLICES.flatMap(s => [
         {
           file: `${OUT_DIR}/us-dd/110_${param}_${s.months}_${s.end}.json`,
           url: `${BASE}/national/time-series/110/${param}/${s.months}/${s.end}/1895-${y}/data.json`
