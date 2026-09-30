@@ -1,7 +1,7 @@
 {
   "usdm": {
     "url": "https://droughtmonitor.unl.edu/data/shapefiles_m/USDM_current_M.zip",
-    "last_checked": "2026-09-29T19:31:45.698Z",
+    "last_checked": "2026-09-30T19:33:02.317Z",
     "layer": "USDM_20260922.shp",
     "valid_date": "2026-09-22",
     "bbox": [
@@ -20,7 +20,7 @@
   },
   "mdo": {
     "url": "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/mdo_polygons_latest.zip",
-    "last_checked": "2026-09-29T19:31:45.698Z",
+    "last_checked": "2026-09-30T19:33:02.317Z",
     "layer": "DO_Merge_Clip.shp",
     "bbox": [
       -179.15,
@@ -29,26 +29,26 @@
       71.39
     ],
     "status": "ok",
-    "last_changed": "2026-08-31T20:15:06.020Z",
-    "features": 5,
-    "output_bytes": 892484,
-    "source_sha256": "a02b8fcbab1111ed81579633c984638d96e152113f571f3587d57de6d99a3c96",
-    "cache_key": "82686253699ec5290f988dbb4a6d97776b03cdd47a5001a5e8b2ce956d33d6ca",
+    "last_changed": "2026-09-30T19:33:02.317Z",
+    "features": 4,
+    "output_bytes": 899726,
+    "source_sha256": "8fa4aa14801323e2baabee008c162f1c7015fc2454d8a664be2b98d61183e5bc",
+    "cache_key": "842c292277d7a45a5014961feff7c52ff5599c542fc53dac89b641e3c09a9e81",
     "properties": {
       "Outlook": "No_Drought",
       "FID_persis": 0,
       "FID_improv": 0,
       "FID_Remove": 0,
       "FID_dev": 0,
-      "Fcst_Date": "08/31/2026",
-      "Target": "Sep 2026"
+      "Fcst_Date": "09/30/2026",
+      "Target": "Oct 2026"
     },
-    "valid_raw": "Sep 2026",
-    "valid_label": "September 2026"
+    "valid_raw": "Oct 2026",
+    "valid_label": "October 2026"
   },
   "sdo": {
     "url": "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/sdo_polygons_latest.zip",
-    "last_checked": "2026-09-29T19:31:45.698Z",
+    "last_checked": "2026-09-30T19:33:02.317Z",
     "layer": "DO_Merge_Clip.shp",
     "bbox": [
       -179.15,
@@ -75,7 +75,7 @@
     "valid_label": "October-December 2026"
   },
   "_meta": {
-    "generated": "2026-09-29T19:31:45.698Z",
+    "generated": "2026-09-30T19:33:02.317Z",
     "fail_after_days": 3,
     "failing": [],
     "alerting": [],
