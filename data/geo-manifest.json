@@ -1,9 +1,9 @@
 {
   "usdm": {
     "url": "https://droughtmonitor.unl.edu/data/shapefiles_m/USDM_current_M.zip",
-    "last_checked": "2026-10-14T18:46:42.752Z",
-    "layer": "USDM_20261006.shp",
-    "valid_date": "2026-10-06",
+    "last_checked": "2026-10-15T18:28:43.729Z",
+    "layer": "USDM_20261013.shp",
+    "valid_date": "2026-10-13",
     "bbox": [
       -156.05,
       17.88,
@@ -11,16 +11,16 @@
       64.31
     ],
     "status": "ok",
-    "last_changed": "2026-10-08T20:01:30.913Z",
+    "last_changed": "2026-10-15T18:28:43.729Z",
     "features": 5,
-    "output_bytes": 324336,
-    "valid_label": "October 6, 2026",
-    "source_sha256": "dcfae9e96e5940be853f95d0d7bcde16262d8b76f6a85c4ae53c347b7bb98d00",
-    "cache_key": "17df1bf07d5538b7addd2f894ff4eb9a569d0d2c386311fbf1b1c8475dcf836f"
+    "output_bytes": 261121,
+    "valid_label": "October 13, 2026",
+    "source_sha256": "386e4adb9a8efefcbec0cdd5f6853ae840b854966a5f254aa9f0c51c82ef1332",
+    "cache_key": "d5170b0efcafc3a0f5d745eb7a98be05e91703657d78b0e4ee51eedfb632506a"
   },
   "mdo": {
     "url": "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/mdo_polygons_latest.zip",
-    "last_checked": "2026-10-14T18:46:42.752Z",
+    "last_checked": "2026-10-15T18:28:43.729Z",
     "layer": "DO_Merge_Clip.shp",
     "bbox": [
       -179.15,
@@ -48,7 +48,7 @@
   },
   "sdo": {
     "url": "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/sdo_polygons_latest.zip",
-    "last_checked": "2026-10-14T18:46:42.752Z",
+    "last_checked": "2026-10-15T18:28:43.729Z",
     "layer": "DO_Merge_Clip.shp",
     "bbox": [
       -179.15,
@@ -57,25 +57,26 @@
       71.39
     ],
     "status": "ok",
-    "last_changed": "2026-10-01T19:41:54.148Z",
-    "features": 5,
-    "output_bytes": 902279,
-    "source_sha256": "02772237b3b56be1388f4003408dc301fe8d66c954709861494fa9881d2b5f3d",
-    "cache_key": "748dea2345707a12b7c5586223622944a4cf8f7f7e3720e0f6487a71717eed2c",
+    "last_changed": "2026-10-15T18:28:43.729Z",
+    "features": 6,
+    "output_bytes": 895376,
+    "source_sha256": "e4535f5ebe3797ac7eca2c7c56e99e0c12808e07b68fff4f00ba2a349ebf6b5f",
+    "cache_key": "727ed68ae7cf6fa426270de0ed52b3876c2be553ff1019af8a3eebd6b3b820d7",
     "properties": {
       "Outlook": "No_Drought",
       "FID_persis": 0,
       "FID_improv": 0,
       "FID_Remove": 0,
       "FID_dev": 0,
-      "Fcst_Date": "09/30/2026",
-      "Target": "December 31"
+      "FID_Worsen": 0,
+      "Fcst_Date": "10/15/2026",
+      "Target": "January 31"
     },
-    "valid_raw": "December 31",
-    "valid_label": "October-December 2026"
+    "valid_raw": "January 31",
+    "valid_label": "November 2026-January 2027"
   },
   "_meta": {
-    "generated": "2026-10-14T18:46:42.752Z",
+    "generated": "2026-10-15T18:28:43.729Z",
     "fail_after_days": 3,
     "failing": [],
     "alerting": [],
