@@ -1,6 +1,6 @@
 {
   "global_anomalies": {
-    "last_run": "2026-10-19T20:22:45.113Z",
+    "last_run": "2026-10-21T09:00:00.362Z",
     "end_year": 2026,
     "year_range": "1850-2026",
     "expected": 1344,
@@ -12,7 +12,7 @@
     "transient_failed": 0
   },
   "us_temperature": {
-    "last_run": "2026-10-19T20:22:45.113Z",
+    "last_run": "2026-10-21T09:00:00.362Z",
     "end_year": 2026,
     "year_range": "1900-2026",
     "expected": 2907,
@@ -24,7 +24,7 @@
     "transient_failed": 0
   },
   "us_precipitation": {
-    "last_run": "2026-10-19T20:22:45.113Z",
+    "last_run": "2026-10-21T09:00:00.362Z",
     "end_year": 2026,
     "year_range": "1900-2026",
     "expected": 969,
@@ -36,7 +36,7 @@
     "transient_failed": 0
   },
   "us_degree_days": {
-    "last_run": "2026-10-19T20:22:45.113Z",
+    "last_run": "2026-10-21T09:00:00.362Z",
     "end_year": 2026,
     "year_range": "1895-2026",
     "expected": 1862,
@@ -48,7 +48,7 @@
     "transient_failed": 0
   },
   "_meta": {
-    "generated": "2026-10-19T20:22:45.113Z",
+    "generated": "2026-10-21T09:00:00.362Z",
     "fail_after_days": 3,
     "alerting": [],
     "alert": false
