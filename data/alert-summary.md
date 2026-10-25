@@ -1,1 +1,1 @@
-- **seaice_arctic** (suspect): newest row is 8 days old (2026-10-17), limit 7
+- **seaice_arctic** (suspect): newest row is 9 days old (2026-10-17), limit 7
