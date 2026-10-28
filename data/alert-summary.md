@@ -1,1 +1,0 @@
-- **seaice_arctic** (suspect): newest row is 12 days old (2026-10-17), limit 7
