@@ -1,7 +1,7 @@
 {
   "usdm": {
     "url": "https://droughtmonitor.unl.edu/data/shapefiles_m/USDM_current_M.zip",
-    "last_checked": "2026-10-31T18:40:27.462Z",
+    "last_checked": "2026-11-01T19:01:46.555Z",
     "layer": "USDM_20261027.shp",
     "valid_date": "2026-10-27",
     "bbox": [
@@ -20,7 +20,7 @@
   },
   "mdo": {
     "url": "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/mdo_polygons_latest.zip",
-    "last_checked": "2026-10-31T18:40:27.462Z",
+    "last_checked": "2026-11-01T19:01:46.555Z",
     "layer": "DO_Merge_Clip.shp",
     "bbox": [
       -179.15,
@@ -29,39 +29,11 @@
       71.39
     ],
     "status": "ok",
-    "last_changed": "2026-09-30T19:33:02.317Z",
+    "last_changed": "2026-11-01T19:01:46.555Z",
     "features": 4,
-    "output_bytes": 899726,
-    "source_sha256": "8fa4aa14801323e2baabee008c162f1c7015fc2454d8a664be2b98d61183e5bc",
-    "cache_key": "842c292277d7a45a5014961feff7c52ff5599c542fc53dac89b641e3c09a9e81",
-    "properties": {
-      "Outlook": "No_Drought",
-      "FID_persis": 0,
-      "FID_improv": 0,
-      "FID_Remove": 0,
-      "FID_dev": 0,
-      "Fcst_Date": "09/30/2026",
-      "Target": "Oct 2026"
-    },
-    "valid_raw": "Oct 2026",
-    "valid_label": "October 2026"
-  },
-  "sdo": {
-    "url": "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/sdo_polygons_latest.zip",
-    "last_checked": "2026-10-31T18:40:27.462Z",
-    "layer": "DO_Merge_Clip.shp",
-    "bbox": [
-      -179.15,
-      17.88,
-      179.77,
-      71.39
-    ],
-    "status": "ok",
-    "last_changed": "2026-10-15T18:28:43.729Z",
-    "features": 6,
-    "output_bytes": 895376,
-    "source_sha256": "e4535f5ebe3797ac7eca2c7c56e99e0c12808e07b68fff4f00ba2a349ebf6b5f",
-    "cache_key": "727ed68ae7cf6fa426270de0ed52b3876c2be553ff1019af8a3eebd6b3b820d7",
+    "output_bytes": 895829,
+    "source_sha256": "60dee11b8318a547b2efbab4e4b28679904f8e4feaa320b750ccaee0af2535f6",
+    "cache_key": "6fd4ea22aa2bdd7678a87ca5f3d0eb515a2b38ccf5d687a52cdf1c2f622087c0",
     "properties": {
       "Outlook": "No_Drought",
       "FID_persis": 0,
@@ -69,14 +41,43 @@
       "FID_Remove": 0,
       "FID_dev": 0,
       "FID_Worsen": 0,
-      "Fcst_Date": "10/15/2026",
+      "Fcst_Date": "10/31/2026",
+      "Target": "Nov 2026"
+    },
+    "valid_raw": "Nov 2026",
+    "valid_label": "November 2026"
+  },
+  "sdo": {
+    "url": "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/sdo_polygons_latest.zip",
+    "last_checked": "2026-11-01T19:01:46.555Z",
+    "layer": "DO_Merge_Clip.shp",
+    "bbox": [
+      -179.15,
+      17.88,
+      179.77,
+      71.39
+    ],
+    "status": "ok",
+    "last_changed": "2026-11-01T19:01:46.555Z",
+    "features": 6,
+    "output_bytes": 906444,
+    "source_sha256": "754bea3027cdfead4827c8ccfae68594be0d573e8ca02210be0651cd49bbb601",
+    "cache_key": "2d0c84896d0c19782826d444725b842b59aae1eb52f4938985150a82e1ec0345",
+    "properties": {
+      "Outlook": "No_Drought",
+      "FID_persis": 0,
+      "FID_improv": 0,
+      "FID_Remove": 0,
+      "FID_dev": 0,
+      "FID_Worsen": 0,
+      "Fcst_Date": "10/31/2026",
       "Target": "January 31"
     },
     "valid_raw": "January 31",
     "valid_label": "November 2026-January 2027"
   },
   "_meta": {
-    "generated": "2026-10-31T18:40:27.462Z",
+    "generated": "2026-11-01T19:01:46.555Z",
     "fail_after_days": 3,
     "failing": [],
     "alerting": [],
