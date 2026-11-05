@@ -1,9 +1,9 @@
 {
   "usdm": {
     "url": "https://droughtmonitor.unl.edu/data/shapefiles_m/USDM_current_M.zip",
-    "last_checked": "2026-11-04T20:52:43.970Z",
-    "layer": "USDM_20261027.shp",
-    "valid_date": "2026-10-27",
+    "last_checked": "2026-11-05T21:09:24.530Z",
+    "layer": "USDM_20261103.shp",
+    "valid_date": "2026-11-03",
     "bbox": [
       -156.05,
       17.88,
@@ -11,16 +11,16 @@
       64.31
     ],
     "status": "ok",
-    "last_changed": "2026-10-29T19:45:15.684Z",
+    "last_changed": "2026-11-05T21:09:24.530Z",
     "features": 5,
-    "output_bytes": 244954,
-    "valid_label": "October 27, 2026",
-    "source_sha256": "7bc62c10a29c8347bf3824352fa41a4230169e440544658aef6d6ff45c97de40",
-    "cache_key": "edc5027a5e4364975f8eb0edf5fe781c4b1d4966ae47e9cf7ab86ac97e9e7832"
+    "output_bytes": 234672,
+    "valid_label": "November 3, 2026",
+    "source_sha256": "24f27ebfe779fd25f4a9b7ef4c865876dbb449ec753ed3ae506c1c1eb11064c8",
+    "cache_key": "4a7516ede27c34ad21f013afa997663e8c520ec03bb5b516b1ed6c0cd836a73d"
   },
   "mdo": {
     "url": "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/mdo_polygons_latest.zip",
-    "last_checked": "2026-11-04T20:52:43.970Z",
+    "last_checked": "2026-11-05T21:09:24.530Z",
     "layer": "DO_Merge_Clip.shp",
     "bbox": [
       -179.15,
@@ -49,7 +49,7 @@
   },
   "sdo": {
     "url": "https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/sdo_polygons_latest.zip",
-    "last_checked": "2026-11-04T20:52:43.970Z",
+    "last_checked": "2026-11-05T21:09:24.530Z",
     "layer": "DO_Merge_Clip.shp",
     "bbox": [
       -179.15,
@@ -77,7 +77,7 @@
     "valid_label": "November 2026-January 2027"
   },
   "_meta": {
-    "generated": "2026-11-04T20:52:43.970Z",
+    "generated": "2026-11-05T21:09:24.530Z",
     "fail_after_days": 3,
     "failing": [],
     "alerting": [],
