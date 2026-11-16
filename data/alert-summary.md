@@ -1,1 +1,0 @@
-- **co2** (suspect): newest row is 76 days old (2026-09-01), limit 70
