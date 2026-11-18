@@ -1,1 +1,3 @@
 - **co2** (suspect): newest row is 78 days old (2026-09-01), limit 70
+- **ch4** (suspect): newest row is 170 days old (2026-06-01), limit 170
+- **n2o** (suspect): newest row is 170 days old (2026-06-01), limit 170
